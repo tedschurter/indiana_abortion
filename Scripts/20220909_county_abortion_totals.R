@@ -20,6 +20,9 @@ cat(state_report[22])
 rm(state_report_url)
 rm(state_report)
 
+# data available at https://www.in.gov/health/vital-records/files/2021-ITOP-Report.pdf
+# downloaded and extracted page 22 via Tabula
+
 st_rep <- read_csv("External Data/2021-ITOP-Report.csv", skip = 1)
 
 # remove column 6 that is full of NA's
