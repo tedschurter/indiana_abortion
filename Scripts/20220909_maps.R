@@ -177,6 +177,17 @@ tcount <- report_pop  %>%
   pull(total_count)
 #
 
+# calculate average per_Capita per county
+pc_mean <- report_pop %>% 
+  summarise(mean = round(mean(Per_Capita),1)) %>% 
+  pull(mean)
+
+# calculate difference between highest per cap county and mean count per cap
+
+pc_hi_dif_mean <- report_pop %>% 
+  summarise(dif = round(high_co_pc/pc_mean),1) %>% 
+  pull(dif)
+
 # Create map --------------------------------------------------------------
 
 
@@ -209,57 +220,58 @@ ggplot(report_pop)+
 
 # Adding labels via annotations to map ------------------------------------
 
-  
-ggplot(report_pop)+
-  geom_sf(aes(fill=Per_Capita),
-          color="#E0E0E0")+
-  coord_sf(datum=NA)+
-  scale_fill_viridis(option="G", 
-                     direction=-1,
-                     name = "Per 1,000 <br>females<br>of child-<br>bearing-age*")+
-  theme_void()+
-  theme(plot.title = element_markdown(hjust = 0),
-        plot.subtitle = element_markdown(size = 10),
-        plot.caption = element_markdown(size = 5.5,
-                                        hjust = 0),
-        plot.caption.position = "plot",
-        plot.title.position = "plot",
-        legend.text = element_text(size = 7),
-        legend.title = element_markdown(size = 6),
-        legend.position = "left")+
-  labs(title = "2021 county abortion rates in Indiana",
-       subtitle = paste("Among the population of child-bearing-age females,*<br> ", high_co_name, 
-                        " County had the highest rate of abortions<br> while ", lowest_co_pc, 
-                        " and ", lowest_co_pc2, " counties tied for the<br> lowest rate."),   
-       caption = "<p> *Child bearing age: 10 to 54-years-old. <br><br><i>Source<b>:<br> in.gov/health/vital-records/vital-statistics/terminated-pregnancy-reports <br>
-        US Census Bureau 2019 Population Estimates <br> <p>")+
-  annotate("point", high_co_cntr_x, high_co_cntr_y,  
-           colour = "antiquewhite4", 
-           size = 1.3)+ # annotation point for high county 
-  annotate("point", low_co_cntr_x, low_co_cntr_y,  
-           colour = "antiquewhite4", 
-           size = 1.3)+ # annotation point for low county 1
-  annotate("point", low_co_cntr2_x, low_co_cntr2_y,  
-           colour = "antiquewhite4", 
-           size = 1.3)+ # annotation point for low county 2
-  annotate("text", x = -84.45, y = 39.72, 
-           label = paste(high_co_name,"\nCounty"), 
-           size=2,
-           colour="black") + # annotation text for high County
-  annotate("text", x = -84.899, y = 38.55, 
-           label = paste(lowest_co_pc,"\nCounty"), 
-           size=2,
-           colour="black") +  # annotation text for low County
-  annotate("text", x = -87.89, y = 39.75, 
-           label = paste(lowest_co_pc2,"\nCounty"), 
-           size=2,
-           colour="black") +
-  annotate("segment", x = high_co_cntr_x, xend = -84.71, y = high_co_cntr_y, yend = 39.76612,
-           colour = "antiquewhite4", size=.75, ) +
-  annotate("segment", x = low_co_cntr_x, xend = -84.899, y = low_co_cntr_y, yend = 38.67,
-           colour = "antiquewhite4", size=.75) +
-  annotate("segment", x = low_co_cntr2_x, xend = -87.64, y = low_co_cntr2_y, yend = 39.8,
-           colour = "antiquewhite4", size=.75) 
+# commenting this out for better solution below 
+# 
+# ggplot(report_pop)+
+#   geom_sf(aes(fill=Per_Capita),
+#           color="#E0E0E0")+
+#   coord_sf(datum=NA)+
+#   scale_fill_viridis(option="G", 
+#                      direction=-1,
+#                      name = "Per 1,000 <br>females<br>of child-<br>bearing-age*")+
+#   theme_void()+
+#   theme(plot.title = element_markdown(hjust = 0),
+#         plot.subtitle = element_markdown(size = 10),
+#         plot.caption = element_markdown(size = 5.5,
+#                                         hjust = 0),
+#         plot.caption.position = "plot",
+#         plot.title.position = "plot",
+#         legend.text = element_text(size = 7),
+#         legend.title = element_markdown(size = 6),
+#         legend.position = "left")+
+#   labs(title = "2021 county abortion rates in Indiana",
+#        subtitle = paste("Among the population of child-bearing-age females,*<br> ", high_co_name, 
+#                         " County had the highest rate of abortions<br> while ", lowest_co_pc, 
+#                         " and ", lowest_co_pc2, " counties tied for the<br> lowest rate."),   
+#        caption = "<p> *Child bearing age: 10 to 54-years-old. <br><br><i>Source<b>:<br> in.gov/health/vital-records/vital-statistics/terminated-pregnancy-reports <br>
+#         US Census Bureau 2019 Population Estimates <br> <p>")+
+#   annotate("point", high_co_cntr_x, high_co_cntr_y,  
+#            colour = "antiquewhite4", 
+#            size = 1.3)+ # annotation point for high county 
+#   annotate("point", low_co_cntr_x, low_co_cntr_y,  
+#            colour = "antiquewhite4", 
+#            size = 1.3)+ # annotation point for low county 1
+#   annotate("point", low_co_cntr2_x, low_co_cntr2_y,  
+#            colour = "antiquewhite4", 
+#            size = 1.3)+ # annotation point for low county 2
+#   annotate("text", x = -84.45, y = 39.72, 
+#            label = paste(high_co_name,"\nCounty"), 
+#            size=2,
+#            colour="black") + # annotation text for high County
+#   annotate("text", x = -84.899, y = 38.55, 
+#            label = paste(lowest_co_pc,"\nCounty"), 
+#            size=2,
+#            colour="black") +  # annotation text for low County
+#   annotate("text", x = -87.89, y = 39.75, 
+#            label = paste(lowest_co_pc2,"\nCounty"), 
+#            size=2,
+#            colour="black") +
+#   annotate("segment", x = high_co_cntr_x, xend = -84.71, y = high_co_cntr_y, yend = 39.76612,
+#            colour = "antiquewhite4", size=.75, ) +
+#   annotate("segment", x = low_co_cntr_x, xend = -84.899, y = low_co_cntr_y, yend = 38.67,
+#            colour = "antiquewhite4", size=.75) +
+#   annotate("segment", x = low_co_cntr2_x, xend = -87.64, y = low_co_cntr2_y, yend = 39.8,
+#            colour = "antiquewhite4", size=.75) 
 
 #
 
@@ -269,15 +281,18 @@ ggplot(report_pop)+
 
 # also adding title and subtitle objects to more easily control text wrapping
 
-t_title <- "<br>Indiana's new, near-total abortion ban took effect Sept. 15, 2022, 
-        making 2021 the last full year abortion was legal."
+t_title <- "<br>Abortion rates for Indiana counties in 2021."
 #
-s_title <- paste("<br>There were", format(as.numeric(paste(tcount)), nsmall=0, big.mark=","),
-                 "abortions performed on Indiana residents in 2021 with an average county rate 
-        of ", pc_mean, "per 1,000 females of child-bearing age.* ", high_co_name, 
-                 " County's rate of", high_co_pc, "was the highest and", per_cap_dif, "times higher than 
-        the next highest county. ", lowest_co_pc, " and ", lowest_co_pc2, " counties 
-        tied for the lowest rate.")
+s_title <- paste("<br>An Indiana state judge recently issued a preliminary 
+        injunction against a state law, enacted after the U.S. Supreme Court 
+        removed federal abortion protections by overturning Roe v. Wade, that 
+        would ban nearly all abortions. In 2021, Indiana residents received", 
+        format(as.numeric(paste(tcount)), nsmall=0, big.mark=","), "abortions.", 
+        high_co_name," County's rate of", high_co_pc, "abortions per 1,000 females of 
+        child-bearing age* was", per_cap_dif, "times higher than the next highest 
+        county and", pc_hi_dif_mean, "times higher than the state’s county average.",
+        lowest_co_pc, " and ", lowest_co_pc2, " counties tied for the lowest rate.")
+
 
 ggplot(report_pop)+
   geom_sf(aes(fill=Per_Capita),
@@ -305,9 +320,11 @@ ggplot(report_pop)+
                        "Abortions<br> per 1,000 <br>females*",
                        breaks = c(0, pc_mean, 3,6,9),
                        labels = c("0","- Average", "3", "6", "9"))+
-  # scale_fill_viridis(option="G", 
+  # scale_fill_viridis(option="G", # alternate diverging (rather than sequential) color-scheme 
   #                    direction=-1,
-  #                    name = "Per 1,000 <br>females<br>of child-<br>bearing-age*")+
+  #                    name   = "Abortions<br> per 1,000 <br>females*",
+  #                    breaks = c(0, pc_mean, 3,6,9),
+  #                    labels = c("0","- Average", "3", "6", "9"))+
   theme_void()+
   theme(plot.title = element_markdown(hjust = 0,
                                       size = 16,
