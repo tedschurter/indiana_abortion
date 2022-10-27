@@ -316,7 +316,7 @@ ggplot(report_pop)+
                 fun.geometry = sf::st_centroid,
                 nudge_x = .1,
                 nudge_y = .15)+
-  scale_fill_distiller(type="seq", palette = "BrBG",
+  scale_fill_distiller(type="div", palette = "BrBG",
                        "Abortions<br> per 1,000 <br>females*",
                        breaks = c(0, pc_mean, 3,6,9),
                        labels = c("0","- Average", "3", "6", "9"))+

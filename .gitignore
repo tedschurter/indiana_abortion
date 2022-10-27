@@ -2,5 +2,16 @@
 .Rhistory
 .RData
 .Ruserdata
-Project on abortion in Indiana.docx
 20220915_misc_code.R
+20220912_Indiana_abortion_notes
+20221014_census_API_misc.R
+untitled.R
+20220923_scrape_pdf.R
+20220927_add_yrs_abortion_totals.R
+20220929_geo_facet_map.R
+20221011_county_charts_mean_median.R
+20221025_leaflet.R
+20221016_county_pop_2014_2021.R
+20221019_abortion_rate_2014_2021.R
+20221019_abortion_totals_2014_2022.R
+20221021_abortion_plots_2014_2021.R
