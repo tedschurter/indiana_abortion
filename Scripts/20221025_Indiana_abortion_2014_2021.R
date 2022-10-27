@@ -1,26 +1,45 @@
-# Indiana Counties population counts ####
-# Indiana county population estimates for females of childbearing age from 2014
-# to 2021. Estimates from US Census Population Estimates. Work in progress.
+# Work in progress. Script gathers US Census Bureau population estimates of 
+# females of childbearing age - 10-49 - from 2014 to 2021 per Indiana county. It 
+# also imports and aggregates from reports provided by the state of Indiana a count 
+# of terminated pregnancies by Indiana residents for the same years. Plots are created
+# showing the rate of abortions per 1,000 females of childbearing age per county 
+# compared to the median rate for all counties of Indiana for use on an interactive 
+# map. 
 
-# libraries and census api ####
+# 20221027 update: adjusting top age for childbearing age range down from 59
+# to max of 49. CDC data suggests birth rate for population above age 50 is 
+# extremely low. "There were 995 births to women aged 50 and over in 2020, down 
+# from 1,073 in 2019, a nonsignificant decline... The number of births 
+# to women in this age group has generally increased since 1997 (when 144 were 
+# reported). The birth rate for women aged 50–54 was unchanged at 1.0 births per 
+# 10,000 women in 2020. source: https://www.cdc.gov/nchs/data/nvsr/nvsr70/nvsr70-17.pdf
+
+# uncomment below and provide census API key
+# census_api_key(ckey) 
+
+# Indiana counties population counts ####
+# Indiana county population estimates for females of childbearing age - 10-49 -
+# from 2014 to 2021. Estimates from US Census Bureau Population Estimates.
+
+# libraries ####
 library(tidyverse)
 library(jsonlite)
 library(tigris)
 library(ggplot2)
+library(ggtext)
 
 # 2014 population totals ####
 
-# 2014 estimate is consistently higher (about 20%) than other years due to the lack of a 
+# 2014 estimate is consistently higher than other years due to the lack of a 
 # grouped age category for 15-44 years. Higher aggregation = lower reliability/accuracy
 # Though it is listed as a categorical variable, AGECAT isn't an option via the 
 # API for 2014: https://api.census.gov/data/2014/pep/cochar5/variables.html
 
 # 2014  variables for 2014 https://www.census.gov/data/developers/data-sets/popest-popproj/popest/popest-vars.Vintage_2014.html
-pop_2014 <- fromJSON("https://api.census.gov/data/2014/pep/cochar5?get=CTYNAME,POP,RACE5,SEX,STNAME,HISP&for=county:*&in=state:18&DATE_=7&AGEGRP=3,4,5,6,7,8,9,10,11,12&for=SEX:2") 
+pop_2014 <- fromJSON("https://api.census.gov/data/2014/pep/cochar5?get=CTYNAME,POP,RACE5,SEX,STNAME,HISP&for=county:*&in=state:18&DATE_=7&AGEGRP=3,4,5,6,7,8,9,10&for=SEX:2") 
 
 pop_2014 <- as_tibble(pop_2014) %>% select(c(1,2,4,8:10))
 colnames(pop_2014) <- pop_2014[1,]  # make first row column names
-
 pop_2014 <-  pop_2014[-1,] %>%  # remove first row that were used for column names
   filter(SEX ==2) %>% 
   mutate(Name = str_extract_all(CTYNAME, "(?<=^).*(?=\\s\\bCounty)"),
@@ -47,30 +66,32 @@ sum(is.na(pop_2014)) # returns 0
 sum(!is.na(pop_2014)) # returns 368; equals rows * columns of df
 #
 
-# years 2015:2018 population totals ####
+# 2015 to 2018 population totals ####
 
 # categorical age group codes for 2018 found at:
 # https://www.census.gov/data/developers/data-sets/popest-popproj/popest/popest-vars.Vintage_2018.html#list-tab-794389051
-# need: 30: 15-44; 10: 44-49; 11: 50-54: 12: 54-59; 3: 10-14
+# need: 30: 15-44; 10: 44-49; 3: 10-14
 # categorical age group codes for 2017 found at:
 # https://www.census.gov/data/developers/data-sets/popest-popproj/popest/popest-vars.Vintage_2017.html#list-tab-794389051
-# need: 30: 15-44; 10: 44-49; 11: 50-54: 12: 54-59; 3: 10-14
+# need: 30: 15-44; 10: 44-49; 3: 10-14
 # categorical age group codes for 2016 found at:
 # https://www.census.gov/data/developers/data-sets/popest-popproj/popest/popest-vars.Vintage_2016.html#list-tab-794389051
-# need: 30: 15-44; 10: 44-49; 11: 50-54: 12: 54-59; 3: 10-14
+# need: 30: 15-44; 10: 44-49; 3: 10-14
 # categorical age group codes for 2015 found at:
 # https://www.census.gov/data/developers/data-sets/popest-popproj/popest/popest-vars.Vintage_2015.html#list-tab-794389051
-# need: 30: 15-44; 10: 44-49; 11: 50-54: 12: 54-59; 3: 10-14
+# need: 30: 15-44; 10: 44-49; 3: 10-14
 
 years <- c(2015,2016,2017,2018)
 
-# loop import female population data from 2015:2018
+# loop import female population data from 2015:2018 
 
 for (i in 1:length(years)) {
   year <- years[i]
   url <- "https://api.census.gov/data/"
-  url_2 <- "/pep/charagegroups?get=GEONAME,POP,AGEGROUP,SEX&for=county:*&in=state:18&for=AGEGROUP:30,12,11,10,3&for=SEX:2"
-  API_URL <- str_c(url, year, url_2)
+  url_2 <- "/pep/charagegroups?get=GEONAME,POP,AGEGROUP,SEX&for=county:*&in=state:18"
+  url_agegroup <- "&for=AGEGROUP:30,10,3" 
+  url_sex <- "&for=SEX:2"
+  API_URL <- str_c(url, year, url_2, url_agegroup,url_sex)
   
   df <- as_tibble(fromJSON(API_URL)) %>% mutate(year=year) 
   
@@ -82,9 +103,9 @@ for (i in 1:length(years)) {
 }
 
 # clean up environment
-rm(API_URL, i, url, url_2, year, years)
+rm(API_URL, i, url, url_2, url_agegroup, url_sex, year, years)
 
-# clean it up df
+# clean up df
 
 colnames(pop_2015_2018) <- pop_2015_2018[1,] # set first row as column names
 pop_2015_2018 <- pop_2015_2018[-1,] # delete first row that were column names
@@ -101,11 +122,10 @@ pop_2015_2018 <- pop_2015_2018 %>%
          # format for county id that lacked leading 0's 
          GEOID = str_c(state, county, sep = ""), # combine state, county for GEOID 
          # for easier join to geometry later
-         fem_pop = # select only the age groups for women of childbearing age 10-59
-           if_else(AGEGROUP == 2, POP,
-                   if_else(AGEGROUP == 11, POP,
-                           if_else(AGEGROUP == 10, POP,
-                                   if_else(AGEGROUP == 30,  POP, 0))))) %>% 
+         fem_pop = # select only the age groups for women of childbearing age 10-49
+           if_else(AGEGROUP == 3, POP,
+                   if_else(AGEGROUP == 10, POP,
+                           if_else(AGEGROUP == 30,  POP, 0)))) %>% 
   group_by(GEONAME, GEOID, year) %>% 
   summarise(fem_pop = round(sum(as.numeric(fem_pop)),0)) %>% 
   select(year, GEOID, Name = GEONAME, fem_pop) 
@@ -121,9 +141,14 @@ rm(df)
 
 # categorical variable codes for 2019:
 # https://www.census.gov/data/developers/data-sets/popest-popproj/popest/popest-vars.Vintage_2019.html
-# need: 30: 15-44; 10: 44-49; 11: 50-54: 12: 54-59; 3: 10-14
+# need: 30: 15-44; 10: 44-49; 3: 10-14
 
-pop_2019 <- as_tibble(fromJSON("https://api.census.gov/data/2019/pep/charagegroups?get=NAME,POP,SUMLEVEL,AGEGROUP,SEX&for=county:*&in=state:18&for=SUMLEVEL=30&for=AGEGROUP:30,12,11,10,3&for=SEX:2")) 
+url <- "https://api.census.gov/data/2019/pep/charagegroups?get=NAME,POP,SUMLEVEL,AGEGROUP,SEX&for=county:*&in=state:18&for=SUMLEVEL=30"
+url_agegroup <- "&for=AGEGROUP:30,10,3" 
+url_sex <- "&for=SEX:2"
+API_URL_2019 <- str_c(url, url_agegroup,url_sex)
+
+pop_2019 <- as_tibble(fromJSON(API_URL_2019)) 
 
 colnames(pop_2019) <- pop_2019[1,] # set first row as column names
 pop_2019 <- pop_2019[-1,] # delete first row that were column names
@@ -137,10 +162,9 @@ pop_2019 <- pop_2019 %>%
          GEOID = str_c(state, county, sep = ""), # combine state, county for GEOID 
          # for easier join to geometry later
          fem_pop = # select only the age groups for women of childbearing age 10-59
-                 if_else(AGEGROUP == 2, POP,
-                 if_else(AGEGROUP == 11, POP,
-                 if_else(AGEGROUP == 10, POP,
-                 if_else(AGEGROUP == 30,  POP, 0))))) %>% 
+           if_else(AGEGROUP == 3, POP,
+                   if_else(AGEGROUP == 10, POP,
+                           if_else(AGEGROUP == 30,  POP, 0)))) %>% 
   group_by(NAME, GEOID, year) %>% 
   summarise(fem_pop = round(sum(as.numeric(fem_pop)),0)) %>% 
   select(year, GEOID, Name = NAME, fem_pop)
@@ -149,6 +173,8 @@ pop_2019 <- pop_2019 %>%
 sum(is.na(pop_2019)) # returns 0
 sum(!is.na(pop_2019)) # returns 368. equals rows * columns
 
+# clean up environment
+rm(API_URL_2019, url, url_agegroup, url_sex)
 
 # 2020-2021 population totals ####
 # categorical variables (age, sex) were not available via the api for 2021. found 
@@ -166,23 +192,23 @@ pop_2020_2021 <- read_csv("https://www2.census.gov/programs-surveys/popest/datas
 
 pop_2020_2021 <- pop_2020_2021 %>% 
   select(c(county=CTYNAME,year=YEAR,AGE1014_FEM,AGE1519_FEM,AGE2024_FEM,
-           AGE2544_FEM,AGE4549_FEM,AGE5054_FEM, COUNTY, STATE)) %>%  # select 
-  # age groups for females of childbearing age only: 10-59
+           AGE2544_FEM,AGE4549_FEM, COUNTY, STATE)) %>%  # select 
+  # age groups for females of childbearing age only: 10-49
   filter(year != 1) %>% # filter out unnecessary estimate from April 2020 
   mutate(
     Name = str_extract_all(county, "(?<=^).*(?=\\s\\bCounty)"), # clean up county name
     year = if_else(year == 2, 2020, 2021), # assign right year
     GEOID = str_c(STATE, COUNTY)) %>% # combine STATE, YEAR FOR GEOID 
-  pivot_longer(3:8, names_to = NULL, values_to = "fem_pop") %>% 
+  pivot_longer(3:7, names_to = NULL, values_to = "fem_pop") %>% 
   group_by(Name, year, GEOID) %>% 
   summarise(fem_pop = sum(fem_pop)) %>%  # add populations for age groups only
-  select(year, GEOID, Name, fem_pop)
+  select(year, GEOID, Name, fem_pop) 
 #
 # check for NA's
 sum(is.na(pop_2020_2021)) # returns 0
 sum(!is.na(pop_2020_2021)) # returns 736 = rows * columns
 
-# combine yearly totals into one county population dataframe ####
+# combine yearly totals into county_pop dataframe ####
 county_pop <-  rbind(pop_2014, pop_2015_2018, pop_2019, pop_2020_2021)
 
 # unlist Name variable
@@ -191,9 +217,7 @@ county_pop$Name <- unlist(county_pop$Name)
 # clean up environment
 rm(pop_2014, pop_2015_2018, pop_2019, pop_2020_2021)
 
-# Abortion Counts ####
-
-# REPORT2: Import and clean data from Indiana Terminated Pregnancy Reports ---------------------------------------------------
+# abortion counts: report2 df: Import and clean data from Indiana Terminated Pregnancy Reports ####
 
 # list of files of converted pdf's (via Tabula) of Terminated Prenancy reports from
 # 2014-2021. 
@@ -368,11 +392,10 @@ report2[736,] # returns Switzerland
 totals <- report2
 
 # clean up environment
-rm(report2, report_2014, report_2015, report_2016, aj_2014, aj_2015, i, files, vintage)
+rm(report2, report_2014, report_2015, report_2016, aj_2014, aj_2015, i, files)
 
 #
-# Calculate abortion rate and median rate ####
-# join county population totals to county abortion totals ####
+# join county_pop to county abortion df totals ####
 
 # before join, check for name compatibility
 
@@ -477,3 +500,8 @@ for(i in 1:n_distinct(per_cap$Name)){
          plot = last_plot(),
          width = 667, height = 400, units = "px")
 }
+
+# clean up environment
+rm(county, file_base, file_end,geoid,i)
+
+

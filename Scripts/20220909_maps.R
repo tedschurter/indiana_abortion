@@ -12,7 +12,7 @@ library(ggtext)
 nrow(fem_co_pop) # 92 rows
 nrow(report)     # 92 rows
 
-
+# join
 
 report_pop <- left_join(fem_co_pop, report, by = "Name") %>% 
   mutate(Per_Capita = round(Count/(fem_pop/1000),2)) %>% 
@@ -214,71 +214,13 @@ ggplot(report_pop)+
        subtitle = paste0(high_co_name, " County had the highest rate of abortions<br>
        among the female child-bearing-age population while<br>", lowest_co_pc, " and ", lowest_co_pc2, 
                          " counties tied for the lowest rate."),   
-       caption = "<p> *Child bearing age: 10 to 54-years-old. <br><br><i>Source<b>:<br> in.gov/health/vital-records/vital-statistics/terminated-pregnancy-reports <br>
+       caption = "<p> *Child bearing age: 10 to 49-years-old. <br><br><i>Source<b>:<br> in.gov/health/vital-records/vital-statistics/terminated-pregnancy-reports <br>
         <br>US Census Bureau 2019 Population Estimates <br> <p>")
-#
-
-# Adding labels via annotations to map ------------------------------------
-
-# commenting this out for better solution below 
-# 
-# ggplot(report_pop)+
-#   geom_sf(aes(fill=Per_Capita),
-#           color="#E0E0E0")+
-#   coord_sf(datum=NA)+
-#   scale_fill_viridis(option="G", 
-#                      direction=-1,
-#                      name = "Per 1,000 <br>females<br>of child-<br>bearing-age*")+
-#   theme_void()+
-#   theme(plot.title = element_markdown(hjust = 0),
-#         plot.subtitle = element_markdown(size = 10),
-#         plot.caption = element_markdown(size = 5.5,
-#                                         hjust = 0),
-#         plot.caption.position = "plot",
-#         plot.title.position = "plot",
-#         legend.text = element_text(size = 7),
-#         legend.title = element_markdown(size = 6),
-#         legend.position = "left")+
-#   labs(title = "2021 county abortion rates in Indiana",
-#        subtitle = paste("Among the population of child-bearing-age females,*<br> ", high_co_name, 
-#                         " County had the highest rate of abortions<br> while ", lowest_co_pc, 
-#                         " and ", lowest_co_pc2, " counties tied for the<br> lowest rate."),   
-#        caption = "<p> *Child bearing age: 10 to 54-years-old. <br><br><i>Source<b>:<br> in.gov/health/vital-records/vital-statistics/terminated-pregnancy-reports <br>
-#         US Census Bureau 2019 Population Estimates <br> <p>")+
-#   annotate("point", high_co_cntr_x, high_co_cntr_y,  
-#            colour = "antiquewhite4", 
-#            size = 1.3)+ # annotation point for high county 
-#   annotate("point", low_co_cntr_x, low_co_cntr_y,  
-#            colour = "antiquewhite4", 
-#            size = 1.3)+ # annotation point for low county 1
-#   annotate("point", low_co_cntr2_x, low_co_cntr2_y,  
-#            colour = "antiquewhite4", 
-#            size = 1.3)+ # annotation point for low county 2
-#   annotate("text", x = -84.45, y = 39.72, 
-#            label = paste(high_co_name,"\nCounty"), 
-#            size=2,
-#            colour="black") + # annotation text for high County
-#   annotate("text", x = -84.899, y = 38.55, 
-#            label = paste(lowest_co_pc,"\nCounty"), 
-#            size=2,
-#            colour="black") +  # annotation text for low County
-#   annotate("text", x = -87.89, y = 39.75, 
-#            label = paste(lowest_co_pc2,"\nCounty"), 
-#            size=2,
-#            colour="black") +
-#   annotate("segment", x = high_co_cntr_x, xend = -84.71, y = high_co_cntr_y, yend = 39.76612,
-#            colour = "antiquewhite4", size=.75, ) +
-#   annotate("segment", x = low_co_cntr_x, xend = -84.899, y = low_co_cntr_y, yend = 38.67,
-#            colour = "antiquewhite4", size=.75) +
-#   annotate("segment", x = low_co_cntr2_x, xend = -87.64, y = low_co_cntr2_y, yend = 39.8,
-#            colour = "antiquewhite4", size=.75) 
-
 #
 
 # Labels using geom_sf_label ----------------------------------------------
 
 # alternate approach to labeling - doesn't require segment
-
 # also adding title and subtitle objects to more easily control text wrapping
 
 t_title <- "<br>Abortion rates for Indiana counties in 2021."
@@ -320,11 +262,6 @@ ggplot(report_pop)+
                        "Abortions<br> per 1,000 <br>females*",
                        breaks = c(0, pc_mean, 3,6,9),
                        labels = c("0","- Average", "3", "6", "9"))+
-  # scale_fill_viridis(option="G", # 
-  #                    direction=-1,
-  #                    name   = "Abortions<br> per 1,000 <br>females*",
-  #                    breaks = c(0, pc_mean, 3,6,9),
-  #                    labels = c("0","- Average", "3", "6", "9"))+
   theme_void()+
   theme(plot.title = element_markdown(hjust = 0,
                                       size = 16,
@@ -349,8 +286,8 @@ ggplot(report_pop)+
   labs(title =paste(strwrap(t_title, width = 65), collapse = " <br>"),
        subtitle = paste(strwrap(s_title, width = 80), collapse = " <br>"),
        
-       caption = "<p> *Female of child-bearing age: 10 to 54-years-old. <br><br><i>Source<b>:<br> in.gov/health/vital-records/vital-statistics/terminated-pregnancy-reports <br>
-        US Census Bureau 2019 Population Estimates <br> <p>")+
+       caption = "<p> *Female of child-bearing age: 10 to 49-years-old. <br><br><i>Source<b>:<br> in.gov/health/vital-records/vital-statistics/terminated-pregnancy-reports <br>
+        US Census Bureau 2018 Population Estimates <br> <p>")+
   annotate("point", high_co_cntr_x, high_co_cntr_y,
            colour = "white",
            size = 1.3)+ # annotation point for high county
@@ -362,7 +299,7 @@ ggplot(report_pop)+
            size = 1.3)
 
 
-ggsave("Plots/20220916_maps_01.pdf", width = 11, height = 8.5, units = "in")
+ggsave("Plots/20221027_maps_01.pdf", width = 11, height = 8.5, units = "in")
 
 
 
