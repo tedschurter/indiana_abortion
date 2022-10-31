@@ -4,177 +4,60 @@
 # of terminated pregnancies by Indiana residents for the same years. Plots are created
 # showing the rate of abortions per 1,000 females of childbearing age per county 
 # compared to the median rate for all counties of Indiana for use on an interactive 
-# map. 
+# map. A leaflet choropleth map is created and uses the plots in a popup for each county. 
 
-# 20221027 update: adjusting top age for childbearing age range down from 59
-# to max of 49. CDC data suggests birth rate for population above age 50 is 
-# extremely low. "There were 995 births to women aged 50 and over in 2020, down 
-# from 1,073 in 2019, a nonsignificant decline... The number of births 
-# to women in this age group has generally increased since 1997 (when 144 were 
-# reported). The birth rate for women aged 50–54 was unchanged at 1.0 births per 
-# 10,000 women in 2020. source: https://www.cdc.gov/nchs/data/nvsr/nvsr70/nvsr70-17.pdf
 
-# uncomment below and provide census API key
-# census_api_key(ckey) 
+
+# libraries ####
+library(ggplot2)
+library(ggtext)
+library(leaflet)
+library(jsonlite)
+library(sf)
+library(tidyverse)
+library(tigris)
 
 # Indiana counties population counts ####
 # Indiana county population estimates for females of childbearing age - 10-49 -
 # from 2014 to 2021. Estimates from US Census Bureau Population Estimates.
 
-# libraries ####
-library(tidyverse)
-library(jsonlite)
-library(tigris)
-library(ggplot2)
-library(ggtext)
+# 2014:2019 population totals ####
 
-# 2014 population totals ####
+# uncomment below and run after loading census API key
+# census_api_key(ckey) 
 
-# 2014 estimate is consistently higher than other years due to the lack of a 
-# grouped age category for 15-44 years. Higher aggregation = lower reliability/accuracy
-# Though it is listed as a categorical variable, AGECAT isn't an option via the 
-# API for 2014: https://api.census.gov/data/2014/pep/cochar5/variables.html
+pop_2014_2019 <- fromJSON(paste0("https://api.census.gov/data/2019/pep/charagegroups?get=NAME,POP&DATE_CODE=7:12&AGEGROUP=3,10,30&SEX=1:2&for=county:*&key=",ckey))  
 
-# 2014  variables for 2014 https://www.census.gov/data/developers/data-sets/popest-popproj/popest/popest-vars.Vintage_2014.html
-pop_2014 <- fromJSON("https://api.census.gov/data/2014/pep/cochar5?get=CTYNAME,POP,RACE5,SEX,STNAME,HISP&for=county:*&in=state:18&DATE_=7&AGEGRP=3,4,5,6,7,8,9,10&for=SEX:2") 
+pop_2014_2019 <- as_tibble(pop_2014_2019)
+colnames(pop_2014_2019) <- pop_2014_2019[1,] # make column names from first row
+pop_2014_2019 <- pop_2014_2019[-1,] # remove row that were used for column names
 
-pop_2014 <- as_tibble(pop_2014) %>% select(c(1,2,4,8:10))
-colnames(pop_2014) <- pop_2014[1,]  # make first row column names
-pop_2014 <-  pop_2014[-1,] %>%  # remove first row that were used for column names
-  filter(SEX ==2) %>% 
-  mutate(Name = str_extract_all(CTYNAME, "(?<=^).*(?=\\s\\bCounty)"),
-         GEOID = str_c(state, county, sep="")) %>% 
-  select(-c(state, county)) %>% 
-  mutate_at(c("POP", "AGEGRP"), as.numeric) %>% 
-  mutate(year = 2014,
-         fem_pop = 
-                if_else(AGEGRP == 12, POP,
-                if_else(AGEGRP == 11, POP,
-                if_else(AGEGRP == 10, POP,
-                if_else(AGEGRP == 9, POP,
-                if_else(AGEGRP == 8, POP,
-                if_else(AGEGRP == 7, POP,
-                if_else(AGEGRP == 6, POP,
-                if_else(AGEGRP == 5, POP,
-                if_else(AGEGRP == 4, POP,
-                if_else(AGEGRP == 3,  POP, 0))))))))))) %>% 
-  group_by(Name, year, GEOID) %>% 
-  summarise(fem_pop = round(sum(fem_pop),0)) %>% 
-  select(year, GEOID, Name, fem_pop)
-#  
-sum(is.na(pop_2014)) # returns 0
-sum(!is.na(pop_2014)) # returns 368; equals rows * columns of df
-#
-
-# 2015 to 2018 population totals ####
-
-# categorical age group codes for 2018 found at:
-# https://www.census.gov/data/developers/data-sets/popest-popproj/popest/popest-vars.Vintage_2018.html#list-tab-794389051
-# need: 30: 15-44; 10: 44-49; 3: 10-14
-# categorical age group codes for 2017 found at:
-# https://www.census.gov/data/developers/data-sets/popest-popproj/popest/popest-vars.Vintage_2017.html#list-tab-794389051
-# need: 30: 15-44; 10: 44-49; 3: 10-14
-# categorical age group codes for 2016 found at:
-# https://www.census.gov/data/developers/data-sets/popest-popproj/popest/popest-vars.Vintage_2016.html#list-tab-794389051
-# need: 30: 15-44; 10: 44-49; 3: 10-14
-# categorical age group codes for 2015 found at:
-# https://www.census.gov/data/developers/data-sets/popest-popproj/popest/popest-vars.Vintage_2015.html#list-tab-794389051
-# need: 30: 15-44; 10: 44-49; 3: 10-14
-
-years <- c(2015,2016,2017,2018)
-
-# loop import female population data from 2015:2018 
-
-for (i in 1:length(years)) {
-  year <- years[i]
-  url <- "https://api.census.gov/data/"
-  url_2 <- "/pep/charagegroups?get=GEONAME,POP,AGEGROUP,SEX&for=county:*&in=state:18"
-  url_agegroup <- "&for=AGEGROUP:30,10,3" 
-  url_sex <- "&for=SEX:2"
-  API_URL <- str_c(url, year, url_2, url_agegroup,url_sex)
-  
-  df <- as_tibble(fromJSON(API_URL)) %>% mutate(year=year) 
-  
-  if (i == 1) {
-    pop_2015_2018 <- df
-  } else {
-    pop_2015_2018 <- rbind(pop_2015_2018, df)
-  }
-}
-
-# clean up environment
-rm(API_URL, i, url, url_2, url_agegroup, url_sex, year, years)
-
-# clean up df
-
-colnames(pop_2015_2018) <- pop_2015_2018[1,] # set first row as column names
-pop_2015_2018 <- pop_2015_2018[-1,] # delete first row that were column names
-
-# 
-pop_2015_2018 <- pop_2015_2018 %>% 
-  rename(year = '2015') %>% 
+pop_2014_2019 <- pop_2014_2019 %>%
+  filter(state == 18) %>% 
   filter(SEX==2) %>% # filter for female only 
-  mutate_at(c("AGEGROUP", "POP"), as.numeric) %>% 
-  mutate(GEONAME = str_extract_all(GEONAME, "(?<=^).*(?=\\s\\bCounty)"),
+  mutate_at(c("AGEGROUP", "POP", "DATE_CODE"), as.numeric) %>% 
+  mutate(Name = str_extract_all(NAME, "(?<=^).*(?=\\s\\bCounty)"),
          county = if_else(nchar(county)==1, str_c("00",county, sep=""), # format for 
-                          # county id that lacked leading 0's 
-                          if_else(nchar(county)==2, str_c("0",county, sep= ""),county)),
+                  # county id that lacked leading 0's 
+                  if_else(nchar(county)==2, str_c("0",county, sep= ""),county)),
          # format for county id that lacked leading 0's 
-         GEOID = str_c(state, county, sep = ""), # combine state, county for GEOID 
-         # for easier join to geometry later
+         GEOID = str_c(state, county, sep = ""),
+         year = if_else(DATE_CODE == 7, 2014,
+                if_else(DATE_CODE == 8, 2015,
+                if_else(DATE_CODE == 9, 2016,
+                if_else(DATE_CODE == 10, 2017,
+                if_else(DATE_CODE == 11, 2018,
+                if_else(DATE_CODE == 12, 2019,0)))))),
          fem_pop = # select only the age groups for women of childbearing age 10-49
            if_else(AGEGROUP == 3, POP,
-                   if_else(AGEGROUP == 10, POP,
-                           if_else(AGEGROUP == 30,  POP, 0)))) %>% 
-  group_by(GEONAME, GEOID, year) %>% 
+           if_else(AGEGROUP == 10, POP,
+           if_else(AGEGROUP == 30, POP, 0)))) %>% 
+  group_by(Name, GEOID, year) %>% 
   summarise(fem_pop = round(sum(as.numeric(fem_pop)),0)) %>% 
-  select(year, GEOID, Name = GEONAME, fem_pop) 
+  select(year, GEOID, Name, fem_pop)
 
-# check for na's
-
-sum(is.na(pop_2015_2018)) # returns 0
-sum(!is.na(pop_2015_2018)) # returns 1472 - equals rows * columns
-# clean up environment from loop
-rm(df)
-
-# 2019 population totals ####
-
-# categorical variable codes for 2019:
-# https://www.census.gov/data/developers/data-sets/popest-popproj/popest/popest-vars.Vintage_2019.html
-# need: 30: 15-44; 10: 44-49; 3: 10-14
-
-url <- "https://api.census.gov/data/2019/pep/charagegroups?get=NAME,POP,SUMLEVEL,AGEGROUP,SEX&for=county:*&in=state:18&for=SUMLEVEL=30"
-url_agegroup <- "&for=AGEGROUP:30,10,3" 
-url_sex <- "&for=SEX:2"
-API_URL_2019 <- str_c(url, url_agegroup,url_sex)
-
-pop_2019 <- as_tibble(fromJSON(API_URL_2019)) 
-
-colnames(pop_2019) <- pop_2019[1,] # set first row as column names
-pop_2019 <- pop_2019[-1,] # delete first row that were column names
-
-# 
-pop_2019 <- pop_2019 %>% 
-  filter(SEX==2) %>% # filter for female only 
-  mutate_at(c("AGEGROUP", "POP"), as.numeric) %>%
-  mutate(year = 2019,
-         NAME = str_extract_all(NAME, "(?<=^).*(?=\\s\\bCounty)"),
-         GEOID = str_c(state, county, sep = ""), # combine state, county for GEOID 
-         # for easier join to geometry later
-         fem_pop = # select only the age groups for women of childbearing age 10-59
-           if_else(AGEGROUP == 3, POP,
-                   if_else(AGEGROUP == 10, POP,
-                           if_else(AGEGROUP == 30,  POP, 0)))) %>% 
-  group_by(NAME, GEOID, year) %>% 
-  summarise(fem_pop = round(sum(as.numeric(fem_pop)),0)) %>% 
-  select(year, GEOID, Name = NAME, fem_pop)
-
-# check for NA's
-sum(is.na(pop_2019)) # returns 0
-sum(!is.na(pop_2019)) # returns 368. equals rows * columns
-
-# clean up environment
-rm(API_URL_2019, url, url_agegroup, url_sex)
+# unlist Name variable
+pop_2014_2019$Name <- unlist(pop_2014_2019$Name)
 
 # 2020-2021 population totals ####
 # categorical variables (age, sex) were not available via the api for 2021. found 
@@ -208,14 +91,23 @@ pop_2020_2021 <- pop_2020_2021 %>%
 sum(is.na(pop_2020_2021)) # returns 0
 sum(!is.na(pop_2020_2021)) # returns 736 = rows * columns
 
-# combine yearly totals into county_pop dataframe ####
-county_pop <-  rbind(pop_2014, pop_2015_2018, pop_2019, pop_2020_2021)
-
 # unlist Name variable
-county_pop$Name <- unlist(county_pop$Name)
+pop_2020_2021$Name <- unlist(pop_2020_2021$Name)
+
+# combine yearly totals into county_pop dataframe ####
+
+# check for compatibility first 
+
+intersect(pop_2020_2021$Name, pop_2014_2019$Name) # returns 92
+# what is missing?
+setdiff(pop_2020_2021$Name, pop_2014_2019$Name) # 
+# reverse order
+setdiff(pop_2014_2019$Name, pop_2020_2021$Name)
+
+county_pop <-  rbind(pop_2014_2019, pop_2020_2021)
 
 # clean up environment
-rm(pop_2014, pop_2015_2018, pop_2019, pop_2020_2021)
+rm(pop_2014_2019, pop_2020_2021)
 
 # abortion counts: report2 df: Import and clean data from Indiana Terminated Pregnancy Reports ####
 
@@ -276,7 +168,6 @@ report_2014 <- read_csv("External Data/tabula/tabula-2014_TP_Report_7.1.15_FINAL
                         id = "year") %>% 
   mutate(year = as.numeric(str_extract(year, "\\d+"))) 
 
-
 colnames(report_2014) <-  c("year","County1", "Count1","County2", "Count2","County3", "Count3")
 
 # create df's for each set of county/count columns from csv
@@ -291,10 +182,8 @@ colnames(rep3_2014) <- c("year","Name", "Count")
 # bind df's and remove rows for "Total" 
 report_2014<-bind_rows(rep1_2014, rep2_2014, rep3_2014) %>% filter(Name != "Total")
 
-
 # remove  intermediate dfs
 rm(rep1_2014, rep2_2014, rep3_2014)
-
 #
 
 # format 2015
@@ -302,7 +191,6 @@ report_2015 <- read_csv("External Data/tabula/tabula-2015-TP-Report.csv",
                         col_names = F,
                         id = "year") %>% 
   mutate(year = as.numeric(str_extract(year, "\\d+"))) 
-
 
 colnames(report_2015) <-  c("year","County1", "Count1","County2", "Count2","County3", "Count3")
 
@@ -317,7 +205,6 @@ colnames(rep3_2015) <- c("year","Name", "Count")
 
 # bind df's and remove rows for "Total" 
 report_2015<-bind_rows(rep1_2015, rep2_2015, rep3_2015) %>% filter(Name != "Total")
-
 
 # remove  intermediate dfs
 rm(rep1_2015, rep2_2015, rep3_2015)
@@ -343,7 +230,6 @@ colnames(rep3_2016) <- c("year","Name", "Count")
 
 # bind df's and remove rows for "Total" 
 report_2016<-bind_rows(rep1_2016, rep2_2016, rep3_2016) %>% filter(Name != "Total")
-
 
 # remove  intermediate dfs
 rm(rep1_2016, rep2_2016, rep3_2016)
@@ -402,8 +288,6 @@ rm(report2, report_2014, report_2015, report_2016, aj_2014, aj_2015, i, files)
 intersect(county_pop$Name, totals$Name) # returns 92
 # what is missing?
 setdiff(totals$Name, county_pop$Name) # De Kalb
-# 
-setdiff(county_pop$Name, totals$Name) # 0
 
 # replace "De Kalb" with "DeKalb"
 
@@ -413,6 +297,8 @@ totals <- totals %>%
   ) 
 # check to see if Names align
 setdiff(totals$Name, county_pop$Name) # returns 0
+# 
+setdiff(county_pop$Name, totals$Name) # 0
 #
 # join
 
@@ -420,9 +306,9 @@ per_cap <- left_join(county_pop, totals)
 
 # check for NA's
 sum(is.na(per_cap))
-is.na(per_cap) %>% View() # NA's in row 78 and 405
-per_cap[78,] # switzerland
-per_cap[405,] # switzerland
+is.na(per_cap) %>% View() # filter TRUE to find NA's in row 487 and 488
+per_cap[463,] # switzerland 2014 
+per_cap[464,] # switzerland 2015
 
 # import county geometry and join to totals and population ####
 
@@ -434,13 +320,12 @@ counties <- counties("IN", cb = T) %>% select(GEOID, geometry)
 # join county geometry with totals and population
 per_cap <- left_join(per_cap, counties)
 
-sum(is.na(per_cap$rate)) # returns 2  - known Switzerland NA's
+sum(is.na(per_cap$Count)) # returns 2  - known Switzerland NA's
 
 # clean up environment
 rm(counties)
 
-
-# calculate rate per 1,000, median of county rates by year
+# calculate rate per 1,000, and median of county rates by year
 per_cap <- per_cap %>%
   mutate(rate = round(1000*(Count/fem_pop),1), # rate/ 1000 women of childbearing age
          .before = geometry) %>% 
@@ -457,11 +342,16 @@ per_cap <- per_cap %>%
 
 # Create one plot per county comparing county with median county rate ####
 
+# Set order of df so that loop will pull 92 instances of unique counties. If not 
+# set right, loop will run 92 times over whatever the first 92 rows of the df are.
+
+per_cap <- per_cap %>% arrange(year)
+
 for(i in 1:n_distinct(per_cap$Name)){
   
   county <- unique(per_cap$Name)[i]
   geoid = per_cap$GEOID[i]
-  file_base <- "Plots/County_Plots/20221025"
+  file_base <- "Plots/County_Plots/20221028"
   file_end <- ".png"
   
   ggplot(per_cap %>% filter(Name == county))+
@@ -493,7 +383,11 @@ for(i in 1:n_distinct(per_cap$Name)){
                                           size=7,
                                           color = "#0142BC", 
                                           family = "serif"),
-      
+      panel.background = element_rect(fill = "#fafaf8"), # match background colors 
+      # to background of leaflet base map cartodb.positron
+      plot.background = element_rect(fill = "#fafaf8",
+                                     color = "#fafaf8")
+                                     
     )
   
   ggsave(filename = str_c(file_base, "_",geoid,file_end, sep = ""),
@@ -503,5 +397,34 @@ for(i in 1:n_distinct(per_cap$Name)){
 
 # clean up environment
 rm(county, file_base, file_end,geoid,i)
+#
+# create interactive map ####
 
+# Use st_sf() to add crs to per_cap for mapping 
+
+sf_per_cap <- st_sf(per_cap)
+
+pal <- colorBin("BrBG", domain = per_cap$rate, bins = bins, reverse = T,
+                na.color = NA)
+
+bins <- c(0,1,2,3,4,5,6,7,8,12) # set custom bins to eliminate bins w/no values
+
+base_url = '"https://raw.githubusercontent.com/tedschurter/indiana_abortion/main/Plots/County_Plots/20221028_'
+end_url = '.png"'
+
+sf_per_cap %>% 
+  leaflet() %>% 
+  addProviderTiles(provider=providers$CartoDB.Positron) %>% 
+  setView( lat=39.767846846959756, lng=-86.1579434376352, zoom=7) %>%
+  addPolygons(
+    stroke = T, 
+    fillOpacity = 0.08,
+    weight = 1,
+    color = "black",
+    fillColor = ~pal(rate),
+    label = ~ Name,
+    popup = paste0("<img src = ", base_url,sf_per_cap$GEOID,end_url, "width=400px height=240px >")) %>% 
+  addLegend(pal = pal, values = ~rate, opacity = 0.7, position = "bottomleft", 
+            title = "Abortion rate per<br>1,000 females of<br> childbearing age",
+            labels = c(0 == "zero")) 
 
