@@ -8,19 +8,19 @@ This project provides a look at abortion in Indiana before fundamental changes i
 
 ##### Scripts
 
-*[20220909_county_abortion_totals.R](https://github.com/tedschurter/indiana_abortion/blob/main/Scripts/20220909_county_abortion_totals.R) Cleans and formats 2021 county abortion totals. 
+* [20220909_county_abortion_totals.R](https://github.com/tedschurter/indiana_abortion/blob/main/Scripts/20220909_county_abortion_totals.R) Cleans and formats 2021 county abortion totals. 
 
-*[20220909_county_population.R](https://github.com/tedschurter/indiana_abortion/blob/main/Scripts/20220909_county_population.R) Downloads population count for females of childbearing age and shapefile data for each county. 
+* [20220909_county_population.R](https://github.com/tedschurter/indiana_abortion/blob/main/Scripts/20220909_county_population.R) Downloads population count for females of childbearing age and shapefile data for each county. 
 
-*[20220909_maps.R](https://github.com/tedschurter/indiana_abortion/blob/main/Scripts/20220909_maps.R) Imports data from previous two scripts to create pdf [map](https://github.com/tedschurter/indiana_abortion/blob/main/Plots/20221027_maps_01.pdf) of 2021 abortion counts by county. 
+* [20220909_maps.R](https://github.com/tedschurter/indiana_abortion/blob/main/Scripts/20220909_maps.R) Imports data from previous two scripts to create pdf [map](https://github.com/tedschurter/indiana_abortion/blob/main/Plots/20221027_maps_01.pdf) of 2021 abortion counts by county. 
 
-*[20221025_Indiana_abortion_2014_2021.R](https://github.com/tedschurter/indiana_abortion/blob/main/Scripts/20221025_Indiana_abortion_2014_2021.R) Expands the scope to import and clean abortion count data by Indiana county for 2014 to 2021. Plots are created for each county showing the rate of abortion over time compared to the state median rate and assembled into an [interactive map](https://tedschurter.github.io/indiana_abortion/). 
+* [20221025_Indiana_abortion_2014_2021.R](https://github.com/tedschurter/indiana_abortion/blob/main/Scripts/20221025_Indiana_abortion_2014_2021.R) Expands the scope to import and clean abortion count data by Indiana county for 2014 to 2021. Plots are created for each county showing the rate of abortion over time compared to the state median rate and assembled into an [interactive map](https://tedschurter.github.io/indiana_abortion/). 
 
 ##### Data
 
 * [External_Data](https://github.com/tedschurter/indiana_abortion/tree/main/External%20Data) Tables showing abortion counts by county were scraped from the Terminated Pregnancy Reports using Tabula and saved as csv files. 
 
-* Exported_Data 
+* [Exported_Data](https://github.com/tedschurter/indiana_abortion/tree/main/Exported_Data) 
 
   * [2021_abortion_count.csv](https://github.com/tedschurter/indiana_abortion/blob/main/Exported_Data/2021_abortion_count.csv) - the count of abortions by county for 2021.
 
@@ -28,8 +28,8 @@ This project provides a look at abortion in Indiana before fundamental changes i
 
   * [per_cap.csv](https://github.com/tedschurter/indiana_abortion/blob/main/Exported_Data/per_cap.csv) - includes abortion count and female of childbearing age count data from 2014:2021 as well as calculations for the rate - the abortion rate per county, yr_med - the median rate for all counties, annual_co_med - the median rate for each county from 2014:2021, and median. Also includes the geometry for mapping.
 
+  * [totals](https://github.com/tedschurter/indiana_abortion/blob/main/Exported_Data/totals.csv) Abortion totals for each county from 2014:2021.
 
- * [totals](https://github.com/tedschurter/indiana_abortion/blob/main/Exported_Data/totals.csv) Abortion totals for each county from 2014:2021.
+ 
 
-  
  
