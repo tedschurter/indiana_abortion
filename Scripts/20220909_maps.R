@@ -4,6 +4,14 @@ library(viridis)
 library(rmarkdown)
 library(ggtext)
 
+# import data ####
+
+# import fem_co_pop from 20220909_county_population.R script 
+fem_co_pop <- read_csv("Exported_Data/fem_co_pop.csv")
+
+# import abortion counts by county for 2021 from 20220909_county_abortion_totals.R
+report <- read_csv("Exported_Data/2021_abortion_count.csv")
+
 # joining dataframes for map ------------------------------------
 
 
@@ -188,38 +196,11 @@ pc_hi_dif_mean <- report_pop %>%
   summarise(dif = round(high_co_pc/pc_mean),1) %>% 
   pull(dif)
 
-# Create map --------------------------------------------------------------
+# Create map ####
 
 
-ggplot(report_pop)+
-  geom_sf(aes(fill=Per_Capita),
-          color="#E0E0E0")+
-  coord_sf(datum=NA)+
-  scale_fill_viridis(option="G", 
-                     direction=-1,
-                     name = "Per 1,000 <br>females<br>of child-<br>bearing-age*")+
-  theme_void()+
-  theme(plot.title = element_markdown(hjust = 0),
-        plot.subtitle = element_markdown(size = 10),
-        plot.caption = element_markdown(size = 5,
-                                        hjust = 0),
-        plot.caption.position = "plot",
-        plot.title.position = "plot",
-        legend.text = element_text(size = 7),
-        legend.title = element_markdown(size = 6),
-        legend.position = "left")+
-  #plot.margin =unit(c(0.1,0.1,0.1,0.1), "cm"),
-  #panel.spacing=unit(c(0.1,0.1,0.1,0.1), "cm"))+
-  labs(title = "2021 county abortion rates in Indiana.",
-       subtitle = paste0(high_co_name, " County had the highest rate of abortions<br>
-       among the female child-bearing-age population while<br>", lowest_co_pc, " and ", lowest_co_pc2, 
-                         " counties tied for the lowest rate."),   
-       caption = "<p> *Child bearing age: 10 to 49-years-old. <br><br><i>Source<b>:<br> in.gov/health/vital-records/vital-statistics/terminated-pregnancy-reports <br>
-        <br>US Census Bureau 2019 Population Estimates <br> <p>")
-#
 
-# Labels using geom_sf_label ----------------------------------------------
-
+# Labels using geom_sf_label ####
 # alternate approach to labeling - doesn't require segment
 # also adding title and subtitle objects to more easily control text wrapping
 
@@ -303,5 +284,31 @@ ggsave("Plots/20221027_maps_01.pdf", width = 11, height = 8.5, units = "in")
 
 
 
-
+# previous plot version ####
+ggplot(report_pop)+
+  geom_sf(aes(fill=Per_Capita),
+          color="#E0E0E0")+
+  coord_sf(datum=NA)+
+  scale_fill_viridis(option="G", 
+                     direction=-1,
+                     name = "Per 1,000 <br>females<br>of child-<br>bearing-age*")+
+  theme_void()+
+  theme(plot.title = element_markdown(hjust = 0),
+        plot.subtitle = element_markdown(size = 10),
+        plot.caption = element_markdown(size = 5,
+                                        hjust = 0),
+        plot.caption.position = "plot",
+        plot.title.position = "plot",
+        legend.text = element_text(size = 7),
+        legend.title = element_markdown(size = 6),
+        legend.position = "left")+
+  #plot.margin =unit(c(0.1,0.1,0.1,0.1), "cm"),
+  #panel.spacing=unit(c(0.1,0.1,0.1,0.1), "cm"))+
+  labs(title = "2021 county abortion rates in Indiana.",
+       subtitle = paste0(high_co_name, " County had the highest rate of abortions<br>
+       among the female child-bearing-age population while<br>", lowest_co_pc, " and ", lowest_co_pc2, 
+                         " counties tied for the lowest rate."),   
+       caption = "<p> *Child bearing age: 10 to 49-years-old. <br><br><i>Source<b>:<br> in.gov/health/vital-records/vital-statistics/terminated-pregnancy-reports <br>
+        <br>US Census Bureau 2019 Population Estimates <br> <p>")
+#
 

@@ -12,7 +12,7 @@ library(stringr)
 # 10,000 women in 2020. source: https://www.cdc.gov/nchs/data/nvsr/nvsr70/nvsr70-17.pdf
 
 # uncomment and provide census API key
-# census_api_key(ckey) 
+# census_api_key(ckey, install = TRUE) 
 
 
 fem_co_pop <- 
@@ -41,3 +41,7 @@ fem_co_pop <-
   mutate(fem_pop = sum(c_across(4:11))) %>% 
   select(c(1,2,12)) %>% 
   ungroup()
+
+
+# save as csv
+write_csv(fem_co_pop, file = "Exported_Data/fem_co_pop.csv")

@@ -295,6 +295,9 @@ totals <- totals %>%
   mutate(Name =
            if_else(Name == "De Kalb", "DeKalb", Name)
   ) 
+
+# write totals to csv
+write_csv(totals, file = "Exported_Data/totals.csv")
 # check to see if Names align
 setdiff(totals$Name, county_pop$Name) # returns 0
 # 
@@ -339,6 +342,9 @@ per_cap <- per_cap %>%
   ungroup() %>% 
   mutate(median = median(rate, na.rm=T),
          .before = geometry) 
+
+# save per_cap as csv
+write_csv(per_cap, file = "Exported_Data/per_cap.csv")
 
 # Create one plot per county comparing county with median county rate ####
 
