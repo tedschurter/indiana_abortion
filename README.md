@@ -29,7 +29,7 @@ This project provides a look at abortion in Indiana before fundamental changes i
   * [per_cap.csv](https://github.com/tedschurter/indiana_abortion/blob/main/Exported_Data/per_cap.csv) - includes abortion count and female of childbearing age count data from 2014:2021 as well as calculations for the rate - the abortion rate per county, yr_med - the median rate for all counties, annual_co_med - the median rate for each county from 2014:2021, and median. Also includes the geometry for mapping.
 
 
-* [totals](https://github.com/tedschurter/indiana_abortion/blob/main/Exported_Data/totals.csv) Abortion totals for each county from 2014:2021.
+ * [totals](https://github.com/tedschurter/indiana_abortion/blob/main/Exported_Data/totals.csv) Abortion totals for each county from 2014:2021.
 
   
  
