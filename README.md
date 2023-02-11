@@ -1,7 +1,7 @@
 <br>
-============
-## Abortion in Indiana <br>
-***
+
+Abortion in Indiana <br>
+
 <br>
 This repository is part of a work-in-progress analysis of [Indiana's Terminated Pregnancy Reports][1] published by the Indiana Department of Health since 2014 when, according to the department, “analysis methods and report design were modified” making comparisons to previous data invalid.<br>
 <br>
