@@ -1,0 +1,1016 @@
+---
+title: "Analysis of Indiana Terminated Pregnancy Reports 2014 to 2021"
+author: "Ted Schurter"
+#date: '2022-10-31'
+output: 
+  flexdashboard::flex_dashboard:
+    theme: lumen
+    #source_code: embed
+
+---
+
+
+County rates
+=====================================  
+Column {data-width=1600}
+------------------------------------------------------------------------
+
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = F)
+knitr::opts_chunk$set(warning = F)
+knitr::opts_chunk$set(message = F)
+```
+
+
+```{r install_packages}
+packages <- c("tidyverse", "flexdashboard", 
+              "crosstalk", "leaflet", "DT", "jsonlite", "sf","tigris")
+if (length(setdiff(packages, rownames(installed.packages()))) > 0) {
+  install.packages(setdiff(packages, rownames(installed.packages())), repos = "http://cran.us.r-project.org")  
+}
+library(tidyverse)
+library(flexdashboard)
+library(crosstalk)  
+library(leaflet)   
+library(DT)
+library(jsonlite)
+library(sf)
+library(tigris)
+library(readxl)
+library(ggtext)
+library(plotly)
+```
+
+```{r import per_cap dataframe}
+# import dataframe per_cap created using script 20221025_Indiana_abortion_2014_2021.R
+
+# convert GEOID to character upon import
+c <- cols_only(
+  year          = col_double(),
+  GEOID         = col_character(),
+  Name          = col_character(),
+  fem_pop       = col_double(),
+  Count         = col_double(),
+  rate          = col_double(),
+  yr_med        = col_double(),
+  annual_co_med = col_double(),
+  median        = col_double()
+)
+
+per_cap <- read_csv("External_Data/per_cap.csv",
+                     col_types = c)
+
+
+options(tigris_use_cache=TRUE)  # cache data
+
+counties <- counties("IN", cb = T) %>% select(GEOID, geometry)
+
+sf_per_cap <- st_sf(left_join(per_cap, counties))
+
+sf_per_cap <- sf_per_cap %>% select(c("Year"= "year", "County" = "Name", "Females of childbearing age" = "fem_pop", "Abortions" = "Count", "Rate" = "rate", "counties_average" = "yr_med", "county_average" = "annual_co_med", "GEOID" = "GEOID"))
+
+# add column denoting center of count for circle markers
+sf_per_cap$cntr <- st_centroid(sf_per_cap$geometry)
+# create lat lon columns
+sf_per_cap <- sf_per_cap %>% 
+  mutate(lng =as.numeric(substr(sf_per_cap$cntr,start = 3,16)),
+         lat =as.numeric(substr(sf_per_cap$cntr, start = 21,34)))
+
+sh_cap <- SharedData$new(sf_per_cap)
+```
+
+    
+```{r interactive_map}
+
+bins <- c(0,1,2,3,4,5,6,7,8,12) # set custom bins to eliminate bins w/no values
+
+pal <- colorBin("BrBG", domain = per_cap$county_average, bins = bins, reverse = T,
+                na.color = NA)
+
+base_url = '"https://raw.githubusercontent.com/tedschurter/indiana_abortion/main/Plots/County_Plots/20221028_'
+end_url = '.png"'
+
+sh_cap %>% 
+  leaflet(
+    options = leafletOptions(minZoom = 6.5,
+                           maxZoom = 6.5)) %>% 
+  fitBounds(39.767, 86.157, 39.867, 86.057) %>% 
+  addProviderTiles(provider=providers$CartoDB.Positron) %>% 
+  setView( lat=39.76846846959756, lng=-86.4979434376352, zoom=6.5) %>%
+  addPolygons(
+    stroke = T, 
+    fillOpacity = 1,
+    weight = 1,
+    color = "black",
+    fillColor = ~pal(county_average),
+    label = ~ County,
+    popup = paste0("<img src = ", base_url,sf_per_cap$GEOID,end_url, "width=300 height=211px >")) %>% 
+  addLegend(pal = pal, values = ~county_average, opacity = 0.7, position = "bottomleft", 
+            title = "Abortion rate per<br>1,000 females of<br> childbearing age",
+            labels = c(0 == "zero")) 
+
+```
+
+
+Column {data-width=1600}
+--------------------------------------------------------------------------------
+
+Procedures over time
+===================================== 
+
+<style>
+.main-container {
+  max-width: 100% !important;
+}
+</style>
+
+```{r include = F}
+
+knitr::opts_chunk$set(eval = T,
+                      echo = F,
+                      include = T,
+                      warning = F,
+                      dev = "png",
+                      dpi = 200,
+                      cache = FALSE,
+                      fig.align  = "left",
+                      fig.width  =  10,
+                      fig.height =  5.46,
+                      #fig.asp = 1.83,
+                      out.width  = "100%",
+                      out.height = "100%"
+                      )
+
+```
+
+```{r import_proc_data, echo=FALSE, include = F, message=F, warning=F}
+
+proc_14_18 <- read_csv("External_Data/procedure_14_18.csv")
+proc_19_21 <- read_csv("External_Data/procedure_19_21.csv")
+proc_14_18_consol <- read_csv("External_Data/procedure_14_18_consol.csv")
+proc_14_18_surg_consol <- read_csv("External_Data/proc_14_18_surg_consol.csv")
+proc_tot <- read_csv("External_Data/proc_tot.csv")
+med_cng <- read_csv("External_Data/med_cng.csv")
+surg_cng <- read_csv("External_Data/surg_cng.csv")
+
+```
+
+```{r proc_line_segments}
+# medical segment start
+rx_seg_1 <-  proc_14_18 %>% filter(year == 2018) %>% 
+  filter (Procedure == "Mifepristone Misoprostol") %>% pull()
+# medical segment end
+rx_seg_2 <-  proc_19_21 %>% filter(year == 2019) %>% 
+  filter (Procedure == "Medical") %>% pull()
+# surgical segment start 
+sg_seg_1 <-  proc_14_18_consol %>% filter(year == 2018) %>% 
+  filter (Procedure == "Surgical") %>% pull()
+# surgical segment end
+sg_seg_2 <-  proc_19_21 %>% filter(year == 2019) %>% 
+  filter (Procedure == "Surgical") %>% pull()
+```
+
+
+```{r assign_proc_colors}
+panel_c <- "#fdfdf2" 
+body_text <- "black"
+procedure_colors <- list(
+  "Medical" = "#9db6c9",
+  "Medical (Surgical)" = "#9db6c9",
+  "Mifepristone Misoprostol" = "#9db6c9",
+  "Surgical" = "#029ba2",
+  "Suction Curettage"  = "#029ba2",
+  "Dilation Evacuation" = "#029ba2",
+  "surgical other" = "#029ba2")
+
+```
+
+```{r proc_labels_annotations}
+surg_def_lab <- paste(
+  "<span style = 'color:",procedure_colors$'Suction Curettage',";'>Surgical procedures</span>
+  <span style = 'color:",body_text,";'>including</span>
+  <span style = 'color:",procedure_colors$'Suction Curettage',";'>menstrual 
+  aspiraiton, suction curetttage, dilation and evacuation, and 'surgical other.'</span>")
+
+surg_def_lab <- paste(
+  "<span style = 'color:",body_text,";'>All</span>
+  <span style = 'color:",procedure_colors$'Suction Curettage',";'>surgical</span>
+  <span style = 'color:",body_text,";'>procedures including</span>
+  <span style = 'color:",procedure_colors$'Suction Curettage',";'>suction curettage</span>")
+
+# medical line label
+med_lab <- paste(
+  "<span style = 'color:",procedure_colors$Medical,";'>Medical Procedures</span>")
+
+# suction curettage label
+sc_lab <- paste(
+  "<span style = 'color:",procedure_colors$'Suction Curettage',";'>Suction curettage</span> 
+  <span style = 'color:",body_text,";'>only</span>")
+
+# all surgical label
+surg_lab <- paste(
+  "<span style = 'color:",procedure_colors$'Suction Curettage',";'>Surgical Procedures</span>")
+
+# non sc surgical types label
+non_sc_surg <- paste(
+  "<span style = 'color:",body_text,";'>All procedures reported as</span>
+  <span style = 'color:",procedure_colors$'Suction Curettage',";'>surgical</span>
+  <span style = 'color:",body_text,";'>except</span>
+  <span style = 'color:",procedure_colors$'Suction Curettage',";'>suction curetttage,</span>
+  <span style = 'color:",body_text,";'>including</span>
+  <span style = 'color:",procedure_colors$'Suction Curettage',";'>dilation and 
+  evacuation, 'medical (surgical)', menstrual aspiration, and 'surgical other.'</span>")
+
+```
+
+```{r proc_titles_captions}
+pct_title <- paste(
+  "<span style = 'color:",procedure_colors$Medical,";'>Medical</span>
+  abortion procedures grew an average</span>
+  <span style = 'color:",procedure_colors$Medical,";'>",
+  paste(round(sum(med_cng$pct_cng, na.rm=T)/length(proc_tot$year),2),'%'),"</span>
+  annually from 2014 to 2021 and eclipsed</span>
+  <span style = 'color:",procedure_colors$Surgical,";'>surgical</span>
+  procedures, which declined an average</span>
+  <span style = 'color:",procedure_colors$Surgical,";'>",
+  paste(abs(round(sum(surg_cng$pct_cng, na.rm=T)/length(proc_tot$year),2)),"%"),
+  "</span>
+  annually, as the predominant abortion procedure in 2019. The rate for all 
+  abortions increased an average</span>
+  <span style = 'color:gray;'>",
+  round(sum(proc_tot$pct_cng, na.rm=T)/length(proc_tot$year),2),"%</span>
+  annually."
+)
+
+subtitle <- paste(
+  "<br><span style = 'color:",procedure_colors$Surgical,";'>Suction curettage</span><span style = 'color:",body_text,";'> can be identified as the most common</span><span style = 'color:",procedure_colors$Surgical,";'> surgical</span><span style = 'color:",body_text,";'> procedure until 2018 when Indiana consolidated all distinct</span><span style = 'color:",procedure_colors$Surgical,";'> surgical</span> procedures into one category.<br></span>")
+
+
+```
+
+```{r proc_plot}
+p2 <- ggplot()+
+  # 2014:2018 medical data
+  geom_line(data=proc_14_18 %>% 
+              filter(Procedure =="Mifepristone Misoprostol"),
+            aes(year, Count, group=Procedure),
+            size = 1.25, color=procedure_colors$Medical,show.legend=F)+
+  # 2014:2018 suction curettage data
+  geom_line(data=proc_14_18 %>% 
+              filter(Procedure =="Suction Curettage"),
+            aes(year, Count, group=Procedure),
+            size = .5, linetype = "solid", show.legend=F,
+            color=procedure_colors$Surgical)+
+  # 2014:2018 surgical non suction-curettage 
+  geom_line(data=proc_14_18_surg_consol %>% filter(Procedure=="Surgical"),
+            aes(year, Count, group=Procedure),
+            size = .5, linetype = "dashed", show.legend=F,
+            color=procedure_colors$Surgical)+
+  # medical line with data from 2019:2021
+  geom_line(data=proc_19_21 %>% filter(Procedure == "Medical"), 
+            aes(year, Count, group=Procedure),
+            size = 1.25, show.legend=F, color=procedure_colors$Medical)+
+  # surgical line with data from 2019:2021
+  geom_line(data=proc_19_21 %>% filter(Procedure == "Surgical"), 
+            aes(year, Count, group=Procedure),
+            color=procedure_colors$Surgical,
+            size = 1.25, show.legend=F, linetype = "solid")+
+  # line segment to connect medical lines from 2018:2019
+  geom_segment(aes(
+    x = 2018, xend = 2019,
+    y = rx_seg_1, yend = rx_seg_2),
+    show.legend=F, size = 1.25, color = procedure_colors$Medical)+
+  geom_segment(aes(
+    x = 2018, xend = 2019,
+    y = sg_seg_1, yend = sg_seg_2),
+    show.legend=F, size =1.25, color = procedure_colors$Surgical, linetype="solid")+
+  # line for total number of abortions over time
+  geom_line(data=proc_tot, 
+            aes(year, total, group = "year"),
+            size = .35, show.legend=F, linetype = "solid",
+            color= "gray")+
+  # dashed line for average number of abortions
+  # geom_line(data=proc_tot, 
+  #           aes(year, mean(total), group = "year"),
+  #           size = .35, show.legend=F, linetype = "dashed",
+  #           color= "gray")+
+  # 0 baseline on x axis
+  geom_segment(aes(x=2014, xend=2021,
+                   y = 0, yend=0),
+               size=.1, color="light gray")+
+  scale_x_discrete(expand = expansion(add = 1.5))+
+  scale_x_continuous(breaks = c(2014,2015,2016,2017, 2018, 2019, 2020, 2021, 2022),
+                     limits = c(2014, 2022),
+                     labels = c("2014","2015","2016","2017", "2018", "2019",
+                                "2020", "2021", ""))+
+  scale_y_continuous(labels = scales::comma)+
+  # annotations ####
+# total label
+annotate("text_box", x=2021, y = proc_tot$total[proc_tot$year == "2021"],
+         label = "All Procedures", color = "gray", lineheight = 1,
+         width = unit(1.5, "inch"), hjust = 0, vjust = .5, box.color=panel_c, 
+         fill = panel_c, size = 4)+
+  # surgical label  
+  annotate("text_box", x=2021, y = pull(proc_19_21[proc_19_21$Procedure =="Surgical" & 
+                                                  proc_19_21$year=="2021" & proc_19_21$Count,3]),
+           label = surg_lab, color = panel_c, lineheight = 1,
+           width = unit(1.5, "inch"), hjust = 0, vjust = .5, box.color=panel_c, 
+           fill = panel_c, size = 4)+
+  # medical label  
+  annotate("text_box", x=2021, y = pull(proc_19_21[proc_19_21$Procedure =="Medical" & 
+                                                  proc_19_21$year=="2021" & proc_19_21$Count,3]),
+           label = med_lab, color = panel_c, lineheight = 1,
+           width = unit(1.5, "inch"), hjust = 0, vjust = .5, box.color=panel_c, 
+           fill = panel_c, size = 4)+
+  # suction curettage label
+  annotate("text_box", x=2018, 
+           y = pull(proc_14_18[proc_14_18$Procedure =="Suction Curettage"& 
+                                 proc_14_18$year=="2018" &proc_14_18$Count,3]),
+           label = sc_lab, color = panel_c, lineheight = 1,
+           hjust =1, vjust = 1.25, box.color=panel_c, 
+           fill = panel_c, size = 2.5, halign = 1)+
+  # surgical definition post 2018 label
+  annotate("text_box", x=2018, 
+           y = pull(proc_14_18[proc_14_18$Procedure =="Suction Curettage"& 
+                                 proc_14_18$year=="2018" &proc_14_18$Count,3]),
+           label = surg_def_lab, color = panel_c, lineheight = 1.2,
+           hjust =0, vjust = -.25, box.color=panel_c, 
+           fill = panel_c, size = 2.5, halign = 0,width = unit(1.5, "inch"))+
+  # vertical line denoting end of data with surgical subtypes
+  geom_segment(aes(x=2018,xend=2018, 
+                   y = 700+pull(proc_14_18[proc_14_18$Procedure =="Suction Curettage"& 
+                                             proc_14_18$year=="2018" & proc_14_18$Count,3]),
+                   yend=-700+pull(proc_14_18[proc_14_18$Procedure =="Suction Curettage"& 
+                                               proc_14_18$year=="2018" & proc_14_18$Count,3])),
+               color="dark gray", linetype = "solid",
+               size = .25, show.legend = F)+
+  # # non sc pre 2018 label
+  annotate("text_box", x=2018, 
+           y = pull(proc_14_18_surg_consol[proc_14_18_surg_consol$year == "2018" &
+                                             proc_14_18_surg_consol$Procedure == "Surgical" & 
+                                             proc_14_18_surg_consol$Count,3]),
+           label = non_sc_surg, color = panel_c, lineheight = 1,
+           width = unit(2, "inch"), hjust =1, vjust = -.05, box.color=panel_c, 
+           fill = panel_c, size = 2.5, halign = 1)+
+  #  theme adjustments ####  
+theme_classic()+
+  theme(
+    #axis.line.y = element_line(color="light gray", size = .05),
+    axis.line = element_blank(),
+    axis.ticks = element_blank(),
+    axis.title = element_blank(),
+    axis.text = element_text(size = 7,
+                             color = "dark gray"),
+    panel.background = element_rect(fill=panel_c),
+    plot.title = element_textbox_simple(
+      size = 16, lineheight = 1, family = "serif", padding = margin(0, 0, 1, 0)),
+    plot.subtitle = element_textbox_simple(
+      size = 12, lineheight = 1, family = "sans", padding = margin(0, 0, 1, 0)),
+    plot.background = element_rect(fill = panel_c, 
+                                   color = "black",
+                                   size = .35),
+    
+    plot.title.position = "plot",
+    plot.margin = unit(c(.5, .5, .5, .5), "cm"),
+    plot.caption = element_markdown(color = "gray", hjust = 1),
+    legend.position = "none"
+  )+
+  labs(
+    title = pct_title,
+    subtitle  = subtitle,
+    caption = "Abortion Data: in.gov/health/vital-records/vital-statistics/terminated-pregnancy-reports/")
+
+```
+
+
+```{r proc_display_plot}
+p2
+
+```
+
+
+
+Procedure type by gestational age
+===================================== 
+
+<style>
+.main-container {
+  max-width: 100% !important;
+}
+</style>
+
+```{r include = F}
+
+knitr::opts_chunk$set(eval = T,
+                      echo = F,
+                      include = T,
+                      warning = F,
+                      dev = "png",
+                      dpi = 200,
+                      cache = FALSE,
+                      fig.align  = "left",
+                      fig.width  =  10,
+                      fig.height =  5.86,
+                      #fig.asp = 1.83,
+                      out.width  = "90%",
+                      out.height = "90%"
+                      )
+
+```
+
+
+
+```{r import_data, include = F}
+# load data
+gp <- read_csv("External_Data/gestation_procedure.csv")
+```
+
+
+
+
+```{r label_calculations}
+#  calculation objects for labels, titles ####
+# create object with total count
+tot <- sum(gp[,3])
+
+# pct all abortions that are done via sc
+tot_pct_sc <-  
+  gp %>% filter(type == "sc") %>%
+  ungroup() %>% 
+  summarise(pct = round(100*(sum(count)/tot),2)) %>% 
+  pull(pct)
+
+# pct all abortions that are done via de
+tot_pct_de <- 
+  gp %>% filter(type == "de") %>%
+  ungroup() %>% 
+  summarise(pct = round(100*(sum(count)/tot),2)) %>% 
+  pull(pct)
+
+# calculate number of abortions between 14-20 weeks that are de
+wk_14_20_de_tot <- 
+  gp %>% ungroup() %>% filter(age %in% 14:20) %>% 
+  summarise(n=sum(count)) %>% 
+  pull(n)
+# calculate percent of all abortions between 14-20 weeks that are de
+wk_14_20_de_pct <- 
+  gp %>% ungroup() %>% filter(age %in% 14:20) %>% filter(type=="de") %>% 
+  summarise(n=sum(count)) %>% 
+  summarise(n=round(100*n/wk_14_20_de_tot,2)) %>% 
+  pull(n)
+
+# pct all abortions that are done via rx
+tot_pct_rx <- 
+  gp %>% filter(type == "rx") %>%
+  ungroup() %>% summarise(pct = round(100*(sum(count)/tot),2)) %>% 
+  pull(pct)
+
+# pct of all abortions after 13 weeks that are dilation and evacuation
+pct_de_14_39 <- 
+  gp %>% filter(type == "de") %>%
+  filter(age != "8") %>% 
+  filter(age != "9") %>% 
+  ungroup() %>% summarise(pct = round(100*(sum(count)/tot),2)) %>% 
+  pull(pct)
+
+# pct of all abortions after 13 weeks that are suction curretage
+pct_sc_14_39 <- 
+  gp %>% filter(type == "sc") %>%
+  filter(age != "8") %>% 
+  filter(age != "9") %>% 
+  ungroup() %>% summarise(pct = round(100*(sum(count)/tot),2)) %>% 
+  pull(pct)  
+
+# total percent of all abortions that happen after 13 weeks
+tot_pct_14_39_wk <- 
+  gp %>% 
+  filter(age != "8") %>% 
+  filter(age != "13") %>% 
+  ungroup() %>% summarise(pct = round(100*(sum(count)/tot),2)) %>% 
+  pull(pct)
+
+# pct of abortions that happen in first 8 weeks
+wk_8_tot <- 
+  gp %>% 
+  filter(age=="8") %>% 
+  summarise(n=sum(count), 
+            pct = round(100*(n/tot),2)) %>% 
+  pull(pct)
+
+# total percent of all abortions that happen in weeks 9-13
+wk_9_13_tot <- 
+  gp %>% 
+  filter(age=="13") %>% 
+  summarise(n=sum(count), 
+            pct = round(100*(n/tot),2)) %>% 
+  pull(pct)
+# total for 0 to 13 weeks
+wk_0_13_tot <- wk_9_13_tot+wk_8_tot
+```
+
+```{r gestational_levels}
+# create levels to age gestational ranges 
+# assign levels to object ed_l ####
+
+ed_lev <- c(
+  "8",
+  "13",
+  "15",
+  "17",
+  "20",
+  "23", 
+  "26", 
+  "29", 
+  "32", 
+  "35",
+  "39")
+#
+ed_lab <- c(
+  "0 to 8 \nweeks",
+  "9 to 13",
+  "14 to 15",
+  "16 to 17",
+  "18 to 20",
+  "21 to 23",
+  "24 to 26",
+  "27 to 29",
+  "30 to 32",
+  "33 to 35",
+  "Full term")
+```
+
+```{r assign_colors}
+panel_c <- "#fdfdf2"
+sc_c <- "#029ba2" 
+rx_c <- "#9db6c9"
+rx_c_txt <- "#9db6c9" 
+de_c <- "#029ba2"
+de_c_txt <- "#029ba2" 
+body_text <- "#000000"
+
+type_colors <- c("sc" = sc_c,
+                 "rx" = rx_c,
+                 "de" = sc_c)
+```
+
+```{r titles_labels}
+# create titles and labels
+title <-  paste(
+  "<span style = 'color:",body_text,";font-size:17pt'>Nearly all abortions in Indiana
+  happen by 13 weeks of gestational age.</span>")
+#
+subtitle <- paste(
+  "<br><span style  = 'color:",body_text,";'>In 2018 Indiana reduced the classification 
+  of procedures in its annual terminated pregancy reports to</span>
+  <span style = 'color:",rx_c_txt,";'>medical</span> or
+  <span style = 'color:",sc_c,";'>surgical</span>. 
+  <span style = 'color:",rx_c_txt,";'>Medical abortion</span> uses medicine to end 
+  a pregnancy.</span> 
+  <span style = 'color:",sc_c,";'>Surgical abortion</span> encompasses many procedures, 
+  sometimes called different names, used at different gestational ages and with 
+  varying degrees of complexity. Indiana classifies menstrual aspiration, 
+  suction curettage, and dilation and evacuation, and dilation and extraction as surgical.<br></span>")
+#
+med_lab <- paste(
+  "<span style = 'color:",rx_c,";'>Medical abortions</span>
+  <span style = 'color:",body_text,";'>use medicine to end pregnancies during the 
+  first 10 weeks of gestational age.</span>")
+#
+
+asp_lab <- paste(
+  "<span style = 'color:",sc_c,";'>Surgical: Aspiration abortions</span>
+  <span style = 'color:",body_text,";'>involve opening the cervix and using a
+  suction device to empty the uterus, generally in the first trimester and early 
+  into the second.</span>")
+
+sc_lab <- paste(
+  "<span style = 'color:",sc_c,";'>Surgical: Suction curretage abortions</span>
+  <span style = 'color:",body_text,";'>involve opening the cervix and using a
+  suction device to empty the uterus. A curette may be used to scrape the walls 
+  of the uterus, generally in the first trimester and early 
+  into the second.</span>")
+
+# dc lab 
+dc_lab <- paste(
+  "<span style = 'color:",sc_c,";'>Surgical: Dilation and curettage abortions</span>
+  involve opening the cervix and using a curette to scrape and empty the uterus, 
+  generally in the first trimester and early into the second.</span>")
+#
+de_lab <- paste(
+  "<span style = 'color:",sc_c,";'>Surgical: Dilation and evacuation (D&E) abortions</span>
+   <span style = 'color:",body_text,";'>involve opening the cervix 
+   and using a combination of methods, including medication and suction, and 
+   tools like forceps and a curette, to end a pregnancy and empty the uterus,
+   generally in the second trimester.</span>")
+
+dx_lab <- paste(
+  "<span style = 'color:",sc_c,";'>Surgical: Dilation and extraction (D&X) abortions</span>
+  <span style = 'color:",body_text,";'>involve opening the cervix and removing the
+  fetus through the birth canal, generally late in the second trimester and in 
+  the third.</span>")
+
+#
+post_22_wk_lab <- paste(
+  "<span style = 'color:",body_text,";'>After 22 weeks, abortion is legal only to 
+  prevent serious health risk to, or save the life of, the mother; or if the fetus has 
+  been diagnosed with a lethal fetal anomaly.</span>")
+
+# #
+rx_lab <- paste(
+  "<span style = 'color:",rx_c_txt,";'>Medical abortions</span>
+  <span style  = 'color:",body_text,";'>are
+  <span style  = 'color:",rx_c_txt,";'>",tot_pct_rx,"%</span> of
+  all abortions and prohibited after 10 weeks.</span>")
+```
+
+```{r create_plot}
+# assign plot to p 
+
+ggplot(gp)+
+  theme_classic()+
+  geom_col(data=gp,
+           aes(x=as_factor(age), y=pct_all,
+               fill=type, 
+           ),
+           color=NA, show.legend = F)+
+  scale_x_discrete(name   = "",
+                   breaks = NULL,
+                   labels = NULL)+
+  scale_y_continuous(name = "",
+                     breaks = c(-30,0,if_else(gp$pct_age_all>1,gp$pct_age_all,NULL), 100),
+                     labels = c("",paste(0,""),paste(if_else(gp$pct_age_all>1,gp$pct_age_all,NULL),"%"),"100%"))+
+  scale_fill_manual(values = type_colors)+
+  theme_classic()+
+  # theme adjustments ####
+theme(
+  axis.line.y = element_blank(),
+  axis.line.x = element_blank(),
+  axis.ticks.x = element_blank(),
+  axis.ticks.y = element_blank(),
+  panel.grid = element_blank(),
+  panel.background = element_rect(fill = panel_c),
+  plot.background = element_rect(color = "black", fill  = panel_c, size = .35),
+  axis.text.x = element_text(size  = 7,
+                             color = body_text,
+                             hjust = 0),
+  axis.text.y = element_text(size  = 7,
+                             color = body_text),
+  # strip.text.x = element_text(size = 8,
+  #                             color = "dark gray"),
+  axis.title.y = element_markdown(angle = 0,
+                                  size  = 8,
+                                  color = body_text,
+                                  vjust = .85,
+                                  hjust = 1),
+  axis.title.x = element_markdown(angle = 0,
+                                  size  = 9,
+                                  color = body_text,
+                                  vjust = .5),
+  plot.title = (plot.title = element_textbox_simple(
+    lineheight = 1, padding = margin(0, 0, 1, 0),
+    family = "serif", size = 19
+  )),
+  plot.subtitle = element_textbox_simple(
+    size = 11, lineheight = 1, family = "sans", padding = margin(0, 0, 5, 0)),
+  plot.title.position = "plot",
+  plot.margin = unit(c(.5, .5, .5, .5), "cm"),
+  plot.caption = element_markdown(color = "gray", hjust = 1),
+  legend.position = "none"
+)+
+  labs(
+    title = title,
+    subtitle  = subtitle,
+    caption = "Abortion Data:in.gov/health/vital-records/vital-statistics/terminated-pregnancy-reports/"
+  ) +
+  # annotations and markers above 0 on x axis ####
+# rx abortion label
+annotate("text_box",x=1.75, y=67,
+         label = rx_lab,
+         size = 3.2, hjust = 0, color="black", box.color=panel_c,
+         fill = NA, label.colour = panel_c, lineheight = 1)+
+  # total pct label
+  annotate("text_box",x=2.5, y=38,
+           label = paste(wk_0_13_tot,"% of abortions happen within the first 13 weeks."),
+           size = 4.5, hjust = 0, color="black", box.color=panel_c,
+           fill = NA, label.colour = panel_c, lineheight = 1)+
+  # segment for total pct label
+  geom_segment(x=2.5, y = 44, xend = 1.85, yend = 44, color = sc_c, size = .15,
+               arrow = arrow(length = unit(0.1, "cm")))+
+  geom_curve(x=2.5, y = 44, xend = 2, yend = 30, color = sc_c, size = .15,
+             curvature = list(0.45), arrow = arrow(length = unit(0.1, "cm")))+
+  
+  # not legal after 22 weeks
+  annotate("text_box",x=6, y=45.5,
+           label = post_22_wk_lab, size = 3.5, hjust = 0, color="black", box.color=panel_c,
+           fill = NA, label.colour = panel_c, lineheight = 1, width = unit(3, "inch"))+
+  geom_segment(x=5.85, y = 80, xend = 5.85, yend = 0, color = "light gray", size = .05,
+               linetype = "dashed")+
+  # annotations and markers below 0 on x axis ####
+# gestational age labels ####
+# 8 wks
+annotate("text_box",x=.5, y=-8,label = "0 to<br> 8 weeks",size = 2.5, hjust = 0, color=body_text, 
+         box.color=NA, fill = NA, label.colour = panel_c, lineheight = 1)+
+  # 13 wks
+  annotate("text_box",x=1.5, y=-8,label = "9 to 13",size = 3, hjust = 0, color= body_text, 
+           box.color=NA, fill = NA, label.colour = panel_c, lineheight = 1)+
+  # 15 wks
+  annotate("text_box",x=2.5, y=-8,label = "14 to 15",size = 3, hjust = 0, color= body_text, 
+           box.color=NA, fill = NA, label.colour = panel_c, lineheight = 1)+
+  # 17 wks
+  annotate("text_box",x=3.5, y=-8,label = "16 to 17",size = 3, hjust = 0, color= body_text, 
+           box.color=NA, fill = NA, label.colour = panel_c, lineheight = 1)+
+  # 20 wks
+  annotate("text_box",x=4.5, y=-8,label = "18 to 20",size = 3, hjust = 0, color= body_text, 
+           box.color=NA, fill = NA, label.colour = panel_c, lineheight = 1)+
+  # 23 wks
+  annotate("text_box",x=5.5, y=-8,label = "21 to 23",size = 3, hjust = 0, color= body_text, 
+           box.color=NA, fill = NA, label.colour = panel_c, lineheight = 1)+
+  # 23 wks
+  annotate("text_box",x=6.5, y=-8,label = "24 to 26",size = 3, hjust = 0, color= body_text, 
+           box.color=NA, fill = NA, label.colour = panel_c, lineheight = 1)+
+  # 29 wks
+  annotate("text_box",x=7.5, y=-8,label = "27 to 29",size = 3, hjust = 0, color= body_text, 
+           box.color=NA, fill = NA, label.colour = panel_c, lineheight = 1)+
+  # 32 wks
+  annotate("text_box",x=8.5, y=-8,label = "30 to 32",size = 3, hjust = 0, color= body_text, 
+           box.color=NA, fill = NA, label.colour = panel_c, lineheight = 1)+
+  # 35 wks
+  annotate("text_box",x=9.5, y=-8,label = "33 to 35",size = 3, hjust = 0, color= body_text, 
+           box.color=NA, fill = NA, label.colour = panel_c, lineheight = 1)+
+  # 39 wks
+  annotate("text_box",x=10.5, y=-8,label = "36 to 39",size = 3, hjust = 0, color= body_text, 
+           box.color=NA, fill = NA, label.colour = panel_c, lineheight = 1)+
+  # procedure labels, trimester labels  ####
+# horizontal line below gestational age labels and to mark trimesters
+# first trimester
+geom_segment(x=.55, xend = 2.20, y = -14.5, yend = -14.5, color="light gray", size = 1.4)+
+  # "1st trimester"
+  annotate("text_box",x=.55, y=-18.75,label = "1st trimester",size = 2.2, hjust = .045, 
+           color=body_text, box.color=NA, fill = NA, label.colour = panel_c, lineheight = 1)+
+  # second trimester
+  geom_segment(x=2.20, xend = 7.6, y = -14.5, yend = -14.5, color="dark gray", size = 1.4)+
+  annotate("text_box",x=2.2, y=-18.75,label = "2nd trimester",size = 2.2, hjust = .035, color=body_text, 
+           box.color=NA, fill = NA, label.colour = panel_c, lineheight = 1)+
+  # third trimester
+  geom_segment(x=7.6, xend = 11.2, y = -14.5, yend = -14.5, color="black", size = 1.4)+
+  annotate("text_box",x=7.6, y=-18.75,label = "3rd trimester",size = 2.2, hjust = .035, color=body_text, 
+           box.color=NA, fill = NA, label.colour = panel_c, lineheight = 1)+
+  # bottom marker line
+  # geom_hline(x=0, xend = 11, yintercept = -50, color=panel_c, size = .1)+
+  # segment for medical abortion label
+  # geom_segment(x=1.75, y = -26, xend = 1.75, yend = -17, color = sc_c, size = .15,
+  #              arrow = arrow(length = unit(0.1, "cm")))+
+  annotate("text_box",
+           
+           #x=.45,y = -21.5
+           x=0.45, y=-21.5,
+           label = med_lab,
+           size = 3, hjust = 0, color="black", box.color=panel_c,vjust = 1,
+           fill = NA, label.colour = panel_c, lineheight = 1,width = unit(1.15, "inch"))+
+             #unit(1.25, "inch"))+
+  # segment for surgical aspiration abortion label
+  # geom_segment(x=3.65, y = -26, xend = 3.65, yend = -17, color = sc_c, size = .15,
+  #              arrow = arrow(length = unit(0.1, "cm")))+
+  annotate("text_box",x=1.95, y=-21.5,
+           label = asp_lab,
+           size = 3, hjust = 0, color="black", box.color=panel_c,vjust = 1,
+           fill = NA, label.colour = panel_c, lineheight = 1,width = unit(1.5, "inch"))+
+             #unit(1.65, "inch"))+
+  # sc label 
+  annotate("text_box",
+           x = 3.75, y = -21.5,
+           #x=3.75, y=-21.5,
+           label = sc_lab,
+           size = 3, hjust = 0, color="black", box.color=panel_c,vjust = 1,
+           fill = NA, label.colour = panel_c, lineheight = 1,width = unit(1.45, "inch"))+
+             #unit(1.65, "inch"))+
+  # dc label# dc label
+  annotate("text_box",
+           x=5.55, y=-21.5,
+           #x=5.55, y=-21.5,
+           label = dc_lab,
+           size = 3, hjust = 0, color="black", box.color=panel_c,vjust = 1,
+           fill = NA, label.colour = panel_c, lineheight = 1,width = unit(1.3, "inch"))+
+             #unit(1.5, "inch"))+
+  # segment for surgical D&E abortion label
+  # geom_segment(x=3.72, y = -23, xend = 3.72, yend = -17, color = sc_c, size = .15,
+  #              arrow = arrow(length = unit(0.1, "cm")))+
+  # geom_segment(x=3.72, y = -23, xend = 6.75, yend = -23, color = sc_c, size = .15)+
+  # geom_segment(x=6.75, y = -23, xend = 6.75, yend = -17, color = sc_c, size = .15,
+  #              arrow = arrow(length = unit(0.1, "cm")))+
+  # geom_segment(x=4, y = -23, xend = 4, yend = -27, color = sc_c, size = .15,
+  #           arrow = NULL)+
+  annotate("text_box",
+           x=7.15, y=-21.5,
+           #x=7.15, y=-21.5,
+           label = de_lab,
+           size = 3, hjust = 0, color="black", box.color=panel_c, vjust = 1,
+           fill = NA, label.colour = panel_c, lineheight = 1, width = unit(1.7, "inch"))+
+             #unit(1.85, "inch"))+
+  # annotate("text_box",x=7.75, y=-21.5,
+  #          label = rep_lab,
+  #          size = 3.75, hjust = 0, color="black", box.color=panel_c, vjust = 1,
+  #          fill = NA, label.colour = panel_c, lineheight = 1, width = unit(3, "inch"))+
+  annotate("text_box",
+           x=9.2, y=-21.5,
+           #x=9.2, y=-21.5,
+           label = dx_lab,
+           size = 3, hjust = 0, color="black", box.color=panel_c, vjust = 1,
+           fill = NA, label.colour = panel_c, lineheight = 1, width = unit(1.7, "inch"))+
+             #unit(1.75, "inch"))+
+  # hidden line used to ensure appropriate depth for labels
+  geom_hline(x=0, xend=11.4, yintercept = -85, color = panel_c, size =1)
+ 
+```
+
+
+
+Column {data-width=1600}
+--------------------------------------------------------------------------------
+
+Abortions by race
+===================================== 
+
+<style>
+.main-container {
+  max-width: 100% !important;
+}
+</style>
+
+```{r include = F}
+
+knitr::opts_chunk$set(eval = T,
+                      echo = F,
+                      include = T,
+                      warning = F,
+                      dev = "png",
+                      dpi = 200,
+                      cache = FALSE,
+                      fig.align  = "left",
+                      fig.width  =  11,
+                      fig.height =  5.75,
+                      #fig.asp = 1.83,
+                      out.width  = "100%",
+                      out.height = "100%"
+                      )
+
+```
+
+```{r import_race_data}
+both_pop <- read_csv("External_Data/both_pop.csv")
+race_avg_pct <- read_csv("External_Data/race_avg_pct.csv")
+```
+
+```{r race_plot_colors}
+panel_c <- "#fdfdf2"
+# race color as list
+race_colors <- 
+  list( "American Indian and Alaska Native"          =  "#f6e8c3", 
+        "Asian"                                      =  "#d8b365",
+        "Black"                                      =  "#01665e",
+        "Multiple Races"                             =  "#5ab4ac",
+        "Native Hawaiian and Other Pacific Islander" =  "#c7eae5",
+        "Other"                                      =  "#2ca25f",
+        "White"                                      =  "#8c510a")
+
+# create dataframe of race colors
+# create vector of race names 
+race_col <- as_tibble(unique(race_avg_pct$race))
+# create vector of colors for race
+race_col$colors <- c(
+  "#f6e8c3",   # American Indian Alaska Native
+  "#d8b365",   # Asian
+  "#01665e",   # Black
+  "#5ab4ac",   # Multiple Races
+  "#c7eae5",   # Native Hawaiian and Other Pacific Islander
+  NA,          # Other
+  "#8c510a")   # White
+
+
+
+#race_col$colors 
+# name columns
+colnames(race_col) <- c("race", "color")
+```
+
+```{r race_plot}
+both_pop %>% 
+  mutate(race_pct = 10*pct_race) %>% 
+  ggplot()+
+  geom_point(
+    aes(10*pct_race, cba_pct, color = race, size = pct_all),
+    show.legend=F)+
+  geom_point(data=both_pop,
+             aes(x = 10*round(100*sum(both_pop$count)/sum(both_pop$total),1),
+                 y = 100*round(sum(both_pop$total)/sum(both_pop$avg),1)),
+             size = 3, shape = 3, color = "dark gray", show.legend = F)+
+  scale_color_manual(values = race_colors)+
+  scale_size_continuous(range = 3.25*c(1,6))+
+  theme_minimal()+
+  scale_y_continuous(name = "Percent of <br>population of <br>childbearing age",
+                     limits = c(48,67),
+                     breaks = c(40,50, 60, 70),
+                     minor_breaks = c(55, 65),
+                     labels = c("40","50%", "60%", "70%"),
+                     expansion(mult = c(.20, .20))
+  )+
+  scale_x_continuous(name = "<br>Rate of abortion per 1,000 women of childbearing age",
+                     limits = 10*c(.125, 1.35),
+                     breaks = 10*c(.25, .50, .75, 1, 1.25, 1.5),
+                     labels = c("2.5", "5", "7.5", "10", "12.5", "15"),
+                     #expand = expansion(mult = c(0.02, 0.02))
+  )+
+  theme(
+    plot.background  = element_rect(color = "black", fill  = panel_c, size = .35),
+    panel.background = element_rect(color = NA, fill = panel_c),
+    axis.title.x  = element_markdown(size = 9, color = "dark gray", family = "sans",
+                                     hjust = 0),
+    axis.title.y = element_markdown(size = 9, color = "dark gray", family = "sans",
+                                    angle = 0, hjust = 0),
+    axis.text =  element_markdown(size = 9, color = "dark gray"),
+    plot.title = element_textbox_simple(
+      size = 18, lineheight = 1, family = "serif", padding = margin(0, 0, 1, 0)),
+    plot.subtitle = element_textbox_simple(
+      size = 11, lineheight = 1, family = "sans", padding = margin(0, 0, 1, 0)),
+    plot.title.position = "plot",
+    plot.margin = unit(c(.5, .5, .5, .5), "cm"),
+    plot.caption = element_markdown(color = "gray", hjust = 1),
+    panel.grid = element_line(colour = "#f6f6f5"))+
+  labs(
+    title = paste0(
+      "The <span style = 'color:",race_colors$Black,";'>Black</span> abortion rate is double the second highest race and three times higher than the state average."),
+    # paste0("The abortion rate for women of childbearing age varies by race. From 2014 to 2021 the average rate was ",
+    #                both_pop %>% summarise(round(sum(count)/sum(total),4))*1000," per 1,000."),
+    subtitle = paste0(
+      "<br>The abortion rate for women of childbearing age varies by race. From 2014 to 2021 the average rate for all races was ",
+      both_pop %>% summarise(round(sum(count)/sum(total),4))*1000," per 1,000. <br>"),
+    caption = "Abortion Data:in.gov/health/vital-records/vital-statistics/terminated-pregnancy-reports/<br>Population Data: US Census Bureau")+
+  
+  # annotations ####
+# annotation for white
+annotate("text_box", 
+         x = 10*both_pop$pct_race[both_pop$race=="White"], 
+         y = both_pop$cba_pct[both_pop$race=="White"],
+         label = paste0(
+           "<span style = 'color:",race_colors$White,";'>Whites, </span>the largest racial group, have the lowest percentage
+        of childbearing age women and the third lowest abortion rate."), 
+         color = "black", lineheight = 1, size = 4,
+         width = unit(3.2, "inch"), hjust = .1, vjust = -.5, box.color=panel_c, 
+         fill = panel_c)+
+  # annotation for asian
+  annotate("text_box", 
+           x = 10*both_pop$pct_race[both_pop$race=="Asian"], 
+           y = both_pop$cba_pct[both_pop$race=="Asian"],
+           label = paste0(
+             "<span style = 'color:",race_colors$Asian,";'>Asians, </span>the third largest racial group, have the highest percentage
+           of childbearing age women and the third highest abortion rate."), 
+           color = "black", lineheight = 1, size = 3.75,
+           width = unit(3, "inch"), hjust = .9, vjust = 1.2, box.color=panel_c, 
+           fill = panel_c)+
+  # annotation for Black
+  annotate("text_box", 
+           x = 10*both_pop$pct_race[both_pop$race=="Black"], 
+           y = both_pop$cba_pct[both_pop$race=="Black"],
+           label = paste0(
+             "<span style = 'color:#01665e;'>Blacks, </span> the second largest racial group, have the second lowest percentage
+         of childbearing age women but the highest abortion rate."), 
+           color = "black",lineheight = 1, size = 4.5,
+           width = unit(3, "inch"), hjust = .85, vjust = 1.2, box.color=panel_c, 
+           fill = panel_c)+
+  # annotation for Native Hawaiian and Other Pacific Islander
+  annotate("text_box", 
+           x = 10*both_pop$pct_race[both_pop$race=="Native Hawaiian and Other Pacific Islander"], 
+           y = both_pop$cba_pct[both_pop$race=="Native Hawaiian and Other Pacific Islander"],
+           label = "Native Hawaiian and Other Pacific Islander",
+           color = "dark gray",lineheight = 1, size = 3,
+           width = unit(2.25, "inch"), hjust = -.08, vjust = .5, box.color=panel_c, 
+           fill = panel_c)+
+  # annotation for American Indian and Alaska Native
+  annotate("text_box", 
+           x = 10*both_pop$pct_race[both_pop$race=="American Indian and Alaska Native"], 
+           y = both_pop$cba_pct[both_pop$race=="American Indian and Alaska Native"],
+           label = "American Indian and Alaska Native",
+           color = "dark gray",lineheight = 1, size = 3,
+           width = unit(2.25, "inch"), hjust = -.08, vjust = .5, box.color=panel_c, 
+           fill = panel_c)+
+  # annotation for Multiple Races
+  annotate("text_box", 
+           x = 10*both_pop$pct_race[both_pop$race=="Multiple Races"], 
+           y = both_pop$cba_pct[both_pop$race =="Multiple Races"],
+           label = "Multiple Races",
+           color = "dark gray", lineheight = 1, size = 3,
+           width = unit(2.25, "inch"), hjust = -.08, vjust = .4, box.color=panel_c, 
+           fill = panel_c) +
+  # annotation for state average
+  annotate("text_box", 
+           x = 10*round(100*sum(both_pop$count)/sum(both_pop$total),1), 
+           y = round(100*sum(both_pop$total)/sum(both_pop$avg),1),
+           label = "Indiana average",
+           color = "dark gray",lineheight = 1, size = 3,
+           width = unit(2.25, "inch"), hjust = -.03, vjust = 1.3, box.color=panel_c, 
+           fill = panel_c) 
+```
+
+
