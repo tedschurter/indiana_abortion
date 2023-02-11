@@ -22,7 +22,6 @@ This project provides a look at abortion in Indiana before fundamental changes i
 
 * Exported_Data 
 
-
   * [2021_abortion_count.csv](https://github.com/tedschurter/indiana_abortion/blob/main/Exported_Data/2021_abortion_count.csv) - the count of abortions by county for 2021.
 
   * [fem_co_pop.csv](https://github.com/tedschurter/indiana_abortion/blob/main/Exported_Data/fem_co_pop.csv) - the count of the female population for 2021
@@ -33,6 +32,4 @@ This project provides a look at abortion in Indiana before fundamental changes i
 * [totals](https://github.com/tedschurter/indiana_abortion/blob/main/Exported_Data/totals.csv) Abortion totals for each county from 2014:2021.
 
   
-  * [totals](https://github.com/tedschurter/indiana_abortion/blob/main/Exported_Data/totals.csv) Abortion totals for each county from 2014:2021.
-
  
