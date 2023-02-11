@@ -423,7 +423,7 @@ sf_per_cap %>%
     color = "black",
     fillColor = ~pal(rate),
     label = ~ Name,
-    popup = paste0("<img src = ", base_url,sf_per_cap$GEOID,end_url, "width=400px height=240px >")) %>% 
+    popup = paste0("<img src = ", base_url,sf_per_cap$GEOID,end_url, "width=300px height=180px >")) %>% 
   addLegend(pal = pal, values = ~rate, opacity = 0.7, position = "bottomleft", 
             title = "Abortion rate per<br>1,000 females of<br> childbearing age",
             labels = c(0 == "zero")) 
