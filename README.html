@@ -382,23 +382,31 @@ invalid.</p>
 Cleans and formats 2021 county abortion totals.</p></li>
 <li><p><a href="https://github.com/tedschurter/indiana_abortion/blob/main/Scripts/20220909_county_population.R">20220909_county_population.R</a>
 Downloads population count for females of childbearing age and shapefile
-data for each county.</p></li>
+geometry data for each county.</p></li>
 <li><p><a href="https://github.com/tedschurter/indiana_abortion/blob/main/Scripts/20220909_maps.R">20220909_maps.R</a>
-Imports data from previous two scripts to create pdf <a href="https://github.com/tedschurter/indiana_abortion/blob/main/Plots/20221027_maps_01.pdf">map</a>
+Imports and joins data from previous two scripts to create pdf <a href="https://github.com/tedschurter/indiana_abortion/blob/main/Plots/20221027_maps_01.pdf">map</a>
 of 2021 abortion counts by county.</p></li>
 <li><p><a href="https://github.com/tedschurter/indiana_abortion/blob/main/Scripts/20221025_Indiana_abortion_2014_2021.R">20221025_Indiana_abortion_2014_2021.R</a>
-Expands the scope to import and clean data on the abortion count and the
-count of females of childbearing age in each Indiana county for 2014 to
-2021. Plots are created for each county showing the rate of abortion
-over time compared to the state median rate and assembled into an <a href="https://tedschurter.github.io/indiana_abortion/">interactive
+Expands the scope to include the abortion counts and the counts of
+females of childbearing age in each Indiana county for 2014 to 2021.
+Plots are created for each county showing the rate of abortion over time
+compared to the state median rate and assembled into an <a href="https://tedschurter.github.io/indiana_abortion/">interactive
 map</a>.</p></li>
 <li><p><a href="https://github.com/tedschurter/indiana_abortion/blob/main/Scripts/20230105_abortion_ethnicity_race.R">20230105_abortion_ethnicity_race.R</a>
 Work-in-progress. Downloads population and ethnicity data for entire
-female population and the female population of childbearing age. It also
-imports race and ethnicity data scraped from Terminated Pregnancy
-Reports. Creates a plot showing for each race the size of the
-population, the percentage of the population that is of childbearing
-age, and the abortion rate.</p></li>
+female population and the female population of childbearing age. Imports
+race and ethnicity abortion data and creates a plot showing for each
+race the size of the population, the percentage of the population that
+is of childbearing age, and the abortion rate.</p></li>
+<li><p><a href="https://github.com/tedschurter/indiana_abortion/blob/main/Scripts/20221214_IN_ab_procedure_script.R">20221214_IN_ab_procedure_script.R</a>
+Imports abortion procedure data to create plots showing the change in
+abortion procedure types over time from 2014 to 2021.</p></li>
+<li><p><a href="https://github.com/tedschurter/indiana_abortion/blob/main/Scripts/20221214_IN_ab_gestation_script.R">20221214_IN_ab_gestation_script.R</a>
+Imports abortion gestational age and procedure data scraped from
+Terminated Pregnancy Reports from 2014 to 2017, the last year the
+reports included a breakdown of abortion by procedure and gestation, to
+create a plot showing when in a pregnancy different abortion procedures
+types occur.</p></li>
 </ul>
 </div>
 <div id="data" class="section level5">
@@ -409,11 +417,11 @@ age, and the abortion rate.</p></li>
 <li><p>Tabula folder includes CSV files, one per year for 2014 to 2021,
 of abortion count by county scraped from the annual Terminated Pregnancy
 Reports using Tabula.</p></li>
-<li><p>One multi-sheet .xlsx file for each year. Each sheet contains a
-different type of data scraped from the Terminated Pregnancy Reports
-including: age, race, ethnicity, education, procedure,
-provider_location, procedure_location, gestation, gestation_procedure,
-and county.</p></li>
+<li><p>reports folder Includes one multi-sheet .xlsx file for each year.
+Each sheet contains a different aspect of data scraped from the
+Terminated Pregnancy Reports: age, race, ethnicity, education,
+procedure, provider_location, procedure_location, gestation,
+gestation_procedure, and county.</p></li>
 </ul></li>
 <li><p><a href="https://github.com/tedschurter/indiana_abortion/tree/main/Exported_Data">Exported_Data</a></p>
 <ul>
@@ -421,24 +429,22 @@ and county.</p></li>
 The count of abortions by county for 2021.</p></li>
 <li><p><a href="https://github.com/tedschurter/indiana_abortion/blob/main/Exported_Data/fem_co_pop.csv">fem_co_pop.csv</a>
 The count of the female population of childbearing age by county for
-2021.</p></li>
-<li><p><a href="https://github.com/tedschurter/indiana_abortion/blob/main/Exported_Data/totals.csv">totals.csv</a>
-Abortion total by county from 2014 to 2021.</p></li>
+2021. Also includes GEOID and mapping geometry columns.</p></li>
 <li><p><a href="https://github.com/tedschurter/indiana_abortion/blob/main/Exported_Data/per_cap.csv">per_cap.csv</a>
-The abortion count and count of females of childbearing age from 2014 to
-2021. Some column definitions include:</p>
+The abortion count and count of females of childbearing age for all
+Indiana counties from 2014 to 2021. Some column definitions include:</p>
 <ul>
-<li>‘rate’ The abortion rate per county.</li>
+<li>‘rate’ The abortion rate per county for a given year.</li>
 <li>‘yr_med’ The median rate for a given year.</li>
 <li>‘annual_co_med’ The median rate for a given county between 2014 and
 2021.</li>
 <li>‘median’ The median for all counties across all years.</li>
-<li>‘geometry’ Details necessary for mapping.</li>
+<li>‘geometry’ Details necessary for mapping. <br> <br></li>
 </ul></li>
 <li><p><a href="https://github.com/tedschurter/indiana_abortion/blob/main/Exported_Data/both_pop.csv">both_pop.csv</a>
 The average total female population and the average female population of
 childbearing age as well as the average count of abortions for each race
-from 2014 to 2021. Columns include:</p>
+from 2014 to 2021. Some column definitions include:</p>
 <ul>
 <li>‘avg’ The average female population per race from 2014 to 2021.</li>
 <li>‘avg_pct’ The percent of the population comprised by each race.</li>
@@ -455,8 +461,35 @@ that has had an abortion.</li>
 race.</li>
 </ul>
 <p>* Race was not provided, or didn’t match existing categories, for
-some abortion records. The lack of these records keeps the sum of the
-ab_pct from totaling 100%.</p></li>
+some abortion records. These missing records don’t align with a race
+category so the sum of the ab_pct column does not equal 100%.</p></li>
+<li><p><a href="https://github.com/tedschurter/indiana_abortion/blob/main/Exported_Data/procedure_totals_pct_chng.csv">procedure_totals_pct_chng.csv</a>
+Includes totals for abortion procedure by type and year and year to year
+percent change. Procedures from 2014 to 2018 were consolidated to either
+medical or surgical for direct comparison with 2019 to 2021
+data.</p></li>
+<li><p><a href="https://github.com/tedschurter/indiana_abortion/blob/main/Exported_Data/procedure_14_18.csv">procedure_14_18.csv</a>
+Includes count of different abortion procedures types from 2014 to
+2018.</p></li>
+<li><p><a href="https://github.com/tedschurter/indiana_abortion/blob/main/Exported_Data/gest.csv">gest.csv</a>
+Includes count of abortions by procedure type and gestational age.
+Column details include:</p>
+<ul>
+<li>age Gestational age in weeks.</li>
+<li>type Type of abortion procedure
+<ul>
+<li>rx = medication abortion</li>
+<li>sc = suction curettage abortion</li>
+<li>de = dilation and evacuation abortion</li>
+<li>ma = medical abortion</li>
+</ul></li>
+<li>pct_age_type Percent of abortion each procedure type represents
+among each gestational age category.</li>
+<li>pct_all Percent of all abortions a given procedure type represents
+at give gestational age.</li>
+<li>pct_age_all Percent of all abortions a given gestational age
+represents.</li>
+</ul></li>
 </ul></li>
 </ul>
 </div>
