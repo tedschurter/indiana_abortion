@@ -202,13 +202,13 @@ write_csv(rbind(surg_cng, med_cng),
 write_csv(proc_14_18, 
           file = 'Exported_Data/procedure_14_18.csv')
 
-# 2014 to 2018 totals by year and procedure with surgical subtypes consolidated 
-write_csv(proc_14_18_consol, 
-          file = 'Exported_Data/procedure_14_18_consol.csv')
-
-# 2019 to 2021 totals by year and procedure type 
-write_csv(proc_19_21, 
-          file = 'Exported_Data/procedure_19_21.csv')
+# # 2014 to 2018 totals by year and procedure with surgical subtypes consolidated 
+# write_csv(proc_14_18_consol, 
+#           file = 'Exported_Data/procedure_14_18_consol.csv')
+# 
+# # 2019 to 2021 totals by year and procedure type 
+# write_csv(proc_19_21, 
+#           file = 'Exported_Data/procedure_19_21.csv')
 
 
 
