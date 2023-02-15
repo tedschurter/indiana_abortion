@@ -38,9 +38,13 @@ for(i in 1:n_distinct(files)){
 # clean up objects, lists ####
 rm(gest2, files, i)
 
+# write all years to csv file
+write_csv(gest, file = "Exported_Data/raw_gest.csv")
+
 # calculate total count ####
 # dividing by four to accomodate upcoming mean calculations for all years.
 tot <- gest[3:6] %>% sum(na.rm = T)/4
+
 
 # calculate mean of all types
 gest <- 
