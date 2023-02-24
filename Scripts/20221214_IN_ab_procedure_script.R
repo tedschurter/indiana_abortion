@@ -203,12 +203,29 @@ write_csv(proc_14_18,
           file = 'Exported_Data/procedure_14_18.csv')
 
 # # 2014 to 2018 totals by year and procedure with surgical subtypes consolidated 
-# write_csv(proc_14_18_consol, 
-#           file = 'Exported_Data/procedure_14_18_consol.csv')
-# 
+write_csv(proc_14_18_consol, 
+          file = 'Exported_Data/procedure_14_18_consol.csv')
+
 # # 2019 to 2021 totals by year and procedure type 
-# write_csv(proc_19_21, 
-#           file = 'Exported_Data/procedure_19_21.csv')
+write_csv(proc_19_21, 
+          file = 'Exported_Data/procedure_19_21.csv')
+
+# below csv's necessary if you want to build the plot (in separate Rmd, for ex.) by importing data and skip some wrangling above
+# # procedure totals for both 2014:2021
+# write_csv(proc_tot,
+#           file = "Exported_Data/proc_tot.csv")
+# 
+# # percent change in medical procedures
+# write_csv(med_cng,
+#           file = "Exported_Data/med_cng.csv")
+# 
+# # percent change in surgical procedures
+# write_csv(surg_cng,
+#           file = "Exported_Data/surg_cng.csv")
+# 
+# # surgical not suction curettage counts from 2014-2018
+# write_csv(proc_14_18_surg_consol,
+#           file = "Exported_Data/proc_14_18_surg_consol.csv")
 
 
 
