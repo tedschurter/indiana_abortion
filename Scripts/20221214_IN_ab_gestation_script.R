@@ -228,7 +228,7 @@ subtitle <- paste(
   <span style = 'color:",sc_c,";'>Surgical abortion</span> encompasses many procedures, 
   sometimes called different names, used at different gestational ages and with 
   varying degrees of complexity. Indiana classifies menstrual aspiration, 
-  suction curettage, and dilation and evacuation, and dilation and extraction as surgical.<br></span>")
+  suction curettage, dilation and evacuation, and dilation and extraction as surgical.<br></span>")
 #
 med_lab <- paste(
   "<span style = 'color:",rx_c,";'>Medical abortions</span>

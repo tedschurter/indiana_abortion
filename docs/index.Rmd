@@ -1013,7 +1013,7 @@ subtitle <- paste(
   <span style = 'color:",sc_c,";'>Surgical abortion</span> encompasses many procedures, 
   sometimes called different names, used at different gestational ages and with 
   varying degrees of complexity. Indiana classifies menstrual aspiration, 
-  suction curettage, and dilation and evacuation, and dilation and extraction as surgical.<br></span>")
+  suction curettage, dilation and evacuation, and dilation and extraction as surgical.<br></span>")
 #
 med_lab <- paste(
   "<span style = 'color:",rx_c,";'>Medical abortions</span>
@@ -1215,14 +1215,14 @@ geom_segment(x=.55, xend = 2.20, y = -14.5, yend = -14.5, color="light gray", si
   # segment for surgical aspiration abortion label
   # geom_segment(x=3.65, y = -26, xend = 3.65, yend = -17, color = sc_c, size = .15,
   #              arrow = arrow(length = unit(0.1, "cm")))+
-  annotate("text_box",x=1.95, y=-21.5,
+  annotate("text_box",x=1.79, y=-21.5,
            label = asp_lab,
            size = 3, hjust = 0, color="black", box.color=panel_c,vjust = 1,
            fill = NA, label.colour = panel_c, lineheight = 1,width = unit(1.5, "inch"))+
              #unit(1.65, "inch"))+
   # sc label 
   annotate("text_box",
-           x = 3.75, y = -21.5,
+           x = 3.54, y = -21.5,
            #x=3.75, y=-21.5,
            label = sc_lab,
            size = 3, hjust = 0, color="black", box.color=panel_c,vjust = 1,
@@ -1230,7 +1230,7 @@ geom_segment(x=.55, xend = 2.20, y = -14.5, yend = -14.5, color="light gray", si
              #unit(1.65, "inch"))+
   # dc label# dc label
   annotate("text_box",
-           x=5.55, y=-21.5,
+           x=5.31, y=-21.5,
            #x=5.55, y=-21.5,
            label = dc_lab,
            size = 3, hjust = 0, color="black", box.color=panel_c,vjust = 1,
@@ -1245,7 +1245,7 @@ geom_segment(x=.55, xend = 2.20, y = -14.5, yend = -14.5, color="light gray", si
   # geom_segment(x=4, y = -23, xend = 4, yend = -27, color = sc_c, size = .15,
   #           arrow = NULL)+
   annotate("text_box",
-           x=7.15, y=-21.5,
+           x=6.91, y=-21.5,
            #x=7.15, y=-21.5,
            label = de_lab,
            size = 3, hjust = 0, color="black", box.color=panel_c, vjust = 1,
@@ -1256,7 +1256,7 @@ geom_segment(x=.55, xend = 2.20, y = -14.5, yend = -14.5, color="light gray", si
   #          size = 3.75, hjust = 0, color="black", box.color=panel_c, vjust = 1,
   #          fill = NA, label.colour = panel_c, lineheight = 1, width = unit(3, "inch"))+
   annotate("text_box",
-           x=9.2, y=-21.5,
+           x=8.81, y=-21.5,
            #x=9.2, y=-21.5,
            label = dx_lab,
            size = 3, hjust = 0, color="black", box.color=panel_c, vjust = 1,

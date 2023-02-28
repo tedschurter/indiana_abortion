@@ -2,9 +2,9 @@
 
 This repository is a work-in-progress analysis of [Indiana's Terminated Pregnancy Reports](https://www.in.gov/health/vital-records/vital-statistics/terminated-pregnancy-reports/) published by the Indiana Department of Health from 2014 through 2021. 
 
-Indiana's new, more restrictive abortion law, passed after the US Supreme Court [ruled](https://www.supremecourt.gov/opinions/21pdf/19-1392_6j37.pdf) that abortion is not a constitutionally protected right, is currently blocked by two lawsuits, the [latest](https://www.reuters.com/legal/judge-blocks-indiana-abortion-ban-religious-freedom-grounds-2022-12-03/) on the grounds that it infringes on the religious rights of Indiana residents.
+Indiana's new, more restrictive abortion law, passed after the US Supreme Court [ruled](https://www.supremecourt.gov/opinions/21pdf/19-1392_6j37.pdf) that abortion is not a constitutionally protected right, is currently blocked by two lawsuits, the [latest](https://www.reuters.com/legal/judge-blocks-indiana-abortion-ban-religious-freedom-grounds-2022-12-03/) on the grounds that it infringes on the religious rights of Indiana residents.The Indiana Supreme Court heard arguments in the first [case](https://apnews.com/article/abortion-politics-health-indiana-state-government-ed6df5505f1f805284cb92b0ba241ce3) in January.
 
-This project provides a look at abortion in Indiana before fundamental changes in access brought about by the new law, if sustained, are made permanent. Though the state has published the data since 2000, the department noted that in 2014, "analysis methods and report design were modified" making comparisons to previous data invalid.
+This project provides a look at abortion in Indiana before fundamental changes in access brought about by the new law, if sustained, are made permanent. Though the state has published the data since 2000, the department noted that in 2014, "analysis methods and report design were modified" making comparisons to previous data invalid. 
 <br><br>
 
 ##### Scripts
