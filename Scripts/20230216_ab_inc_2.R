@@ -490,5 +490,3 @@ ggsave(filename = "Plots/biv_med_inc_ab.pdf",
 
 
 
-
-
