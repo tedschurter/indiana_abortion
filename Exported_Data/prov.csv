@@ -1,0 +1,85 @@
+year,facility,address,county,count_by_yr,pct_by_yr
+2014,"Affiliated Women's Services, Inc.",2215 Distributors Dr. Indianapolis,Marion,32,0.4
+2014,Clinic for Women,3607 W. 16th St. Indianapolis,Marion,998,12.3
+2014,Friendship Family Planning Clinic of Indiana,3700 Broadway Gary,Lake,158,1.9
+2014,The Women's Med Center of Indianapolis,1201 N. Arlington Ave. Indianapolis,Marion,1179,14.5
+2014,Planned Parenthood of Indianapolis,"8590 Georgetown
+Rd. Indianapolis",Marion,2973,36.6
+2014,Planned Parenthood of  Bloomington,421 S. College Ave. Bloomington,Monroe,718,8.8
+2014,Planned Parenthood of Lafayette,964 Mezzanine Dr. Lafayette,Tippecanoe,169,2.1
+2014,Planned Parenthood of Merrillville,8645 Connecticut St. Merrillville,Lake,1070,13.2
+2014,Women's Pavilion,2010 Ironwood Cir. South Bend,St. Joseph,788,9.7
+2014,Indiana University Health University Hospital,550 University Blvd. Indianapolis,Marion,4,0
+2014,Sidney & Lois Eskenazi Hospital,720 Eskenazi Ave. Indianapolis,Marion,28,0.3
+2015,Clinic for Women,3607 W. 16th St. Indianapolis,Marion,784,9.8
+2015,The Women's Med Center of Indianapolis,1201 N. Arlington Ave. Indianapolis,Marion,1334,16.8
+2015,Planned Parenthood of Indianapolis,8590 Georgetown Rd. Indianapolis,Marion,2879,36.2
+2015,Planned Parenthood of Bloomington,421 S. College Ave. Bloomington,Monroe,822,10.3
+2015,Planned Parenthood of Lafayette,964 Mezzanine Dr. Lafayette,Tippecanoe,259,3.2
+2015,Planned Parenthood of Merrillville,8645 Connecticut St. Merrillville,Lake,1274,16
+2015,Women's Pavilion,2010 Ironwood Cir. South Bend,St. Joseph,578,7.3
+2015,Indiana University Health University Hospital,550 University Blvd. Indianapolis,Marion,5,0.1
+2015,Sidney & Lois Eskenazi Hospital,720 Eskenazi Ave. Indianapolis,Marion,20,0.2
+2015,Indiana University Health North Hospital,11700 N. Meridian St. Carmel,Hamilton,2,0
+2016,Clinic for Women,3607 W. 16th St. Indianapolis,Marion,682,9.4
+2016,The Women's Med Center of Indianapolis,1201 N. Arlington Ave. Indianapolis,Marion,1252,17.2
+2016,Planned Parenthood of Indianapolis,8590 Georgetown Rd. Indianapolis,Marion,2837,39
+2016,Planned Parenthood of Bloomington,421 S. College Ave. Bloomington,Monroe,1016,14
+2016,Planned Parenthood of Lafayette,964 Mezzanine Dr. Lafayette,Tippecanoe,172,2.4
+2016,Planned Parenthood of Merrillville,8645 Connecticut St. Merrillville,Lake,1278,17.6
+2016,Indiana University Health Methodist Hospital,1701 Senate Blvd. Indianapolis,Marion,7,0.1
+2016,Sidney & Lois Eskenazi Hospital,720 Eskenazi Ave. Indianapolis,Marion,33,0.4
+2017,Clinic for Women,3607 W. 16th St. Indianapolis,Marion,1087,14
+2017,The Women's Med Center of Indianapolis,1201 N. Arlington Ave. Indianapolis,Marion,1093,14.1
+2017,Planned Parenthood of Indianapolis,8590 Georgetown Rd. Indianapolis,Marion,2992,38.5
+2017,Planned Parenthood of Bloomington,421 S. College Ave. Bloomington,Monroe,1065,13.7
+2017,Planned Parenthood of Lafayette,964 Mezzanine Dr. Lafayette,Tippecanoe,321,4.1
+2017,Planned Parenthood of Merrillville,8645 Connecticut St. Merrillville,Lake,1173,15.1
+2017,Indiana University Health Methodist Hospital,1701 Senate Blvd. Indianapolis,Marion,8,0.1
+2017,Sidney & Lois Eskenazi Hospital,720 Eskenazi Ave. Indianapolis,Marion,38,0.5
+2017,Indiana University Health North Hospital,11700 N. Meridian St. Carmel,Hamilton,1,0
+2018,Planned Parenthood of Merrillville,NA,Lake,1212,15.1
+2018,Planned Parenthood of Lafayette,NA,Tippecanoe,196,2.4
+2018,Planned Parenthood of Bloomington,NA,Monroe,887,11
+2018,Planned Parenthood of Indianapolis,NA,Marion,3284,40.9
+2018,The Women's Med Center of Indianapolis,NA,Marion,1269,17.8
+2018,Clinic for Women,NA,Marion,1145,14.2
+2018,Sidney & Lois Eskenazi Hospital,NA,Marion,19,0.2
+2018,Indiana University Health North Hospital,NA,Marion,13,0.2
+2018,Indiana University Health Methodist Hospital,NA,Marion,11,0.1
+2018,Community Hospital North Surgery Center,NA,Marion,1,0
+2019,Planned Parenthood of Merrillville,NA,Lake,994,13
+2019,Planned Parenthood of Lafayette,NA,Tippecanoe,20,0.3
+2019,Planned Parenthood of Bloomington,NA,Monroe,816,10.7
+2019,Planned Parenthood of Indianapolis,NA,Marion,2584,33.8
+2019,Clinic for Women,NA,Marion,1279,16.8
+2019,The Women's Med Center of Indianapolis,NA,Marion,1754,23
+2019,Whole Women's Health of South Bend,NA,St. Joseph,138,1.8
+2019,Sidney & Lois Eskenazi Hospital,NA,Marion,34,0.4
+2019,Indiana University Health North Hospital,NA,Marion,1,0
+2019,Indiana University Health Methodist Hospital,NA,Marion,17,0.2
+2020,Planned Parenthood of Merrillville,NA,Lake,1039,13.4
+2020,Planned Parenthood of Lafayette,NA,Tippecanoe,194,2.5
+2020,Planned Parenthood of Bloomington,NA,Monroe,764,9.8
+2020,Planned Parenthood of Indianapolis,NA,Marion,2307,29.7
+2020,Clinic for Women,NA,Marion,1049,15.8
+2020,The Women's Med Center of Indianapolis,NA,Marion,1949,25.1
+2020,Whole Women's Health of South Bend,NA,St. Joseph,366,4.7
+2020,Sidney & Lois Eskenazi Hospital,NA,Marion,51,0.7
+2020,Indiana University Health Methodist Hospital,NA,Marion,33,0.4
+2020,Indiana University Health University Hospital,NA,Marion,1,0
+2020,Indiana University Riley Hospital,NA,Marion,1,0
+2020,Deaconess Women's Hospital,NA,Warrick,2,0
+2021,Planned Parenthood of Merrillville,NA,Lake,1145,13.6
+2021,Planned Parenthood of Lafayette,NA,Tippecanoe,161,1.9
+2021,Planned Parenthood of Bloomington,NA,Monroe,512,6.1
+2021,Planned Parenthood of Indianapolis,NA,Marion,2450,29.1
+2021,Clinic for Women,NA,Marion,1365,16.2
+2021,The Women's Med Center of Indianapolis,NA,Marion,2293,27.3
+2021,Whole Women's Health of South Bend,NA,St. Joseph,355,4.2
+2021,Sidney & Lois Eskenazi Hospital,NA,Marion,68,0.8
+2021,Indiana University Health Methodist Hospital,NA,Marion,39,0.5
+2021,Indiana University Health West Hospital,NA,Marion,1,0
+2021,Indiana University Riley Hospital,NA,Marion,19,0.2
+2021,Indiana University Health University Hospital,NA,Marion,3,0
+2021,Deaconess Women's Hospital,NA,Warrick,3,0
