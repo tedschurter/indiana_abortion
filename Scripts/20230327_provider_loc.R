@@ -88,10 +88,10 @@ for(i in 1:n_distinct(files)){
   mutate(year = str_extract(files[i], pattern = "\\d{4}"),
          .before = Facility)
     # convert year to numeric
-  prov$year <- as.numeric(prov$year)
-  
-    # save dataframe
   if (i==1){
+  
+  prov$year <- as.numeric(prov$year)
+    # save dataframe
     prov2 <- prov}
   else {
     prov2 <- rbind(prov2, prov)
@@ -184,12 +184,11 @@ prov <- prov %>% mutate(facility = if_else(
 
 # trim whitespace from facility, counties
 
-prov <- prov %>% mutate(county = str_trim(prov$county, side = "both"),
-                        facility = str_trim(prov$facility, side = "both"))
+prov <- prov %>% mutate(county = str_squish(county),
+                        facility = str_squish(facility)) 
 
-as_tibble(unique(prov$facility)) %>% View
 
 # write prov dataframe to csv
-write_csv(prov, file = "Exported_Data/prov.csv")
+#write_csv(prov, file = "Exported_Data/prov.csv")
 
 
