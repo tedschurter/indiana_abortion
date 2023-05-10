@@ -10,17 +10,11 @@ output:
 ---
 
 
-County rates
-=====================================  
-Column {data-width=1600}
-------------------------------------------------------------------------
-
-
-
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = F)
 knitr::opts_chunk$set(warning = F)
 knitr::opts_chunk$set(message = F)
+#knitr::opts_chunk$set(results = F)
 ```
 
 
@@ -31,6 +25,7 @@ if (length(setdiff(packages, rownames(installed.packages()))) > 0) {
   install.packages(setdiff(packages, rownames(installed.packages())), repos = "http://cran.us.r-project.org")  
 }
 library(tidyverse)
+library(biscale)
 library(flexdashboard)
 library(crosstalk) 
 library(cowplot)
@@ -43,7 +38,64 @@ library(readxl)
 library(ggtext)
 library(plotly)
 library(tidycensus)
+library(ggforce)
+library(ggmap)
+library(ggrepel)
+library(osmdata)
+library(rmapshaper)
 ```
+
+
+```{r custom theme}
+# set custom theme ####
+t_theme <- function(base_size = 10){
+  
+    theme_classic() %+replace%
+    
+    theme( 
+            #grid elements
+      panel.grid.major.y = element_line(color = "gray85", size = .25),
+      #panel.grid.major.y = element_blank(),
+      panel.grid.major.x = element_blank(), 
+      axis.line = element_blank(),
+      axis.ticks = element_blank(), 
+      
+      #axis.line = element_line(color = "gray90"),
+      #axis.line.y = element_blank(),
+      
+      axis.text = element_text(color = "gray55",
+                               size  = rel(.65)),
+      axis.title.x = element_text(color = "gray55",
+                                  size = rel(.65), hjust = 0),
+      axis.title.y = element_text(color = "gray55",
+                                  size = rel(.6)),
+      
+      plot.title = element_textbox_simple(size = rel(1.5), color = "gray25", 
+                                          hjust = 0,lineheight = 1, family = "serif",face = "plain", margin = unit(c(0, 0, 6, 0), "pt")),
+      plot.subtitle = element_textbox_simple(size = rel(1.1), color = "gray40", hjust = 0,
+                                       lineheight = 1,margin = margin(0.2, 0, .2, 0, unit = "cm"),),
+      plot.caption = element_textbox_simple(family = "sans", size = rel(.7),
+                                            color = "gray40", halign = 1,
+                                            lineheight = 1.2),
+      plot.title.position = "plot",
+      plot.caption.position = "panel", 
+      plot.margin = margin(.5, .5, .5,.5, unit = "cm")  
+    )
+}
+
+```
+
+
+<style>
+.main-container {
+  max-width: 100% !important;
+}
+</style>
+
+County abortion rates 2014-2021 {data-navmenu="Maps"}
+=====================================  
+Column {data-width=1600}
+------------------------------------------------------------------------
 
 ```{r import per_cap dataframe}
 # import dataframe per_cap created using script 20221025_Indiana_abortion_2014_2021.R
@@ -73,20 +125,13 @@ sf_per_cap <- st_sf(left_join(per_cap, counties))
 
 sf_per_cap <- sf_per_cap %>% select(c("Year"= "year", "County" = "Name", "Females of childbearing age" = "fem_pop", "Abortions" = "Count", "Rate" = "rate", "counties_average" = "yr_med", "county_average" = "annual_co_med", "GEOID" = "GEOID"))
 
-# add column denoting center of count for circle markers
-sf_per_cap$cntr <- st_centroid(sf_per_cap$geometry)
-# create lat lon columns
-sf_per_cap <- sf_per_cap %>% 
-  mutate(lng =as.numeric(substr(sf_per_cap$cntr,start = 3,16)),
-         lat =as.numeric(substr(sf_per_cap$cntr, start = 21,34)))
 
-sh_cap <- SharedData$new(sf_per_cap)
 ```
 
     
 ```{r fig.width = 8.5, fig.height=11, interactive_map }
 
-bins <- c(0,1,2,3,4,5,6,7,8,12) # set custom bins to eliminate bins w/no values
+bins <- c(12,8,7,6,5,4,3,2,1,0) # set custom bins to eliminate bins w/no values
 
 pal <- colorBin("BrBG", domain = per_cap$county_average, bins = bins, reverse = T,
                 na.color = NA)
@@ -94,10 +139,10 @@ pal <- colorBin("BrBG", domain = per_cap$county_average, bins = bins, reverse = 
 base_url = '"https://raw.githubusercontent.com/tedschurter/indiana_abortion/main/Plots/County_Plots/20221028_'
 end_url = '.png"'
 
-sh_cap %>% 
-  leaflet(
+
+leaflet(sf_per_cap,
     options = leafletOptions(minZoom = 6.5,
-                           maxZoom = 6.5)) %>% 
+                             maxZoom = 6.5)) %>% 
   fitBounds(39.767, 86.157, 39.867, 86.057) %>% 
   addProviderTiles(provider=providers$CartoDB.Positron) %>% 
   setView( lat=39.76846846959756, lng=-86.4979434376352, zoom=6.5) %>%
@@ -110,738 +155,409 @@ sh_cap %>%
     label = ~ County,
     popup = paste0("<img src = ", base_url,sf_per_cap$GEOID,end_url, "width=300 height=211px >")) %>% 
   addLegend(pal = pal, values = ~county_average, opacity = 0.7, position = "bottomleft", 
-            title = "Abortion rate per<br>1,000 females of<br> childbearing age",
+            title = "Abortion rate per<br>1,000 females of<br> childbearing age<br><br>Click to view county<br>rates.<br><br>",
             labels = c(0 == "zero")) 
 
 ```
 
-Abortion rate and <br>median household<br> income 
-=====================================  
-Column {data-width=1600}
------------------------------------------------------------------------
 
-<style>
-.main-container {
-  max-width: 100% !important;
-}
-</style>
+Abortion rates for 20-34 year-olds by county {data-navmenu="Maps"}
+===================================== 
 
-```{r import med_ab data}
-# import csv with rate and count of abortions by county from 2014:2021 and geometry data
 
-per_cap <- read_csv("Exported_Data/per_cap.csv")
+```{r import data for abortion totals and age data}
+# 2020-2021 population totals ####
+# categorical variables (age, sex) were not available via the api for 2021. found 
+# them elsewhere, though as  csv:
+# https://www2.census.gov/programs-surveys/popest/datasets/2020-2021/counties/asrh/cc-est2021-agesex-18.csv
+# 
+# from their file layout document regarding years:
+# https://www2.census.gov/programs-surveys/popest/technical-documentation/file-layouts/2020-2021/cc-est2021-agesex.pdf
+#   "The key for YEAR is as follows:
+#    1 = 4/1/2020 population estimates base
+#    2 = 7/1/2020 population estimate
+#    3 = 7/1/2021 population estimate"
 
-# filter years to 2017:2021
+# create vector of ages needed
+ages <- c("AGE2024_FEM", "AGE2529_FEM", "AGE3034_FEM")
 
-per_cap <- per_cap %>% filter(year %in% 2017:2021) %>% select (-geometry)
+# import data from census.gov
+pop_data <- read_csv("https://www2.census.gov/programs-surveys/popest/datasets/2020-2021/counties/asrh/cc-est2021-agesex-18.csv")
 
-# import median income data from tidycensus with location data ####
+# filter to ages of 20:34-year-old females in 2021
+pop_1 <- pop_data  %>% 
+  select(c(county=CTYNAME,year=YEAR, paste(ages), COUNTY, STATE)) %>%  # select 
+  # age groups for females of childbearing age only: 10-49
+  filter(year != 1) %>% # filter out unnecessary estimate from April 2020 
+  mutate(
+    Name = str_extract_all(county, "(?<=^).*(?=\\s\\bCounty)"), # clean up county name
+    year = if_else(year == 2, 2020, 2021), # assign right year
+    GEOID = str_c(STATE, COUNTY)) %>% # combine STATE, YEAR FOR GEOID 
+  pivot_longer(3:5, names_to = NULL, values_to = "fem_pop") %>% 
+  group_by(Name, year, GEOID) %>% 
+  summarise(fem_pop = sum(fem_pop)) %>%  # add populations for age groups only
+  select(year, GEOID, Name, fem_pop) %>% 
+  filter(year == 2021) %>% 
+  ungroup()
 
-# 5 year ACS data for Indiana counties and annual median household income: B19013_001 
+# import count for all women of child bearing age in county
+all_ages <- "POPEST_FEM"
+#c("AGE1519_FEM","AGE2024_FEM","AGE2544_FEM","AGE4549_FEM")
+pop_2 <- pop_data  %>% 
+  select(c(county=CTYNAME,year=YEAR, paste(all_ages), COUNTY, STATE)) %>%  # select 
+  # age groups for females of childbearing age only: 10-49
+  filter(year != 1) %>% # filter out unnecessary estimate from April 2020 
+  mutate(
+    Name = str_extract_all(county, "(?<=^).*(?=\\s\\bCounty)"), # clean up county name
+    year = if_else(year == 2, 2020, 2021), # assign right year
+    GEOID = str_c(STATE, COUNTY)) %>% # combine STATE, YEAR FOR GEOID 
+  pivot_longer(3, names_to = NULL, values_to = "fem_pop") %>% 
+  group_by(Name, year, GEOID) %>% 
+  summarise(all_age = sum(fem_pop)) %>%  # add populations for age groups only
+  select(year, GEOID, Name, all_age) %>% 
+  filter(year == 2021) %>% 
+  ungroup() %>% 
+  select(-year)
+#
+# check for NA's
+# sum(is.na( pop_1)) # returns 0
+# sum(is.na( pop_2)) # returns 0
 
-in_med <- 
-  get_acs(
-    geography = "county",
-    year = 2021,
-    state = "IN",
-    variables = "B19013_001",output = "tidy",geometry = TRUE)
+# add fem_rte column for percent of population 20-34-years old; remove year
+pop <- left_join(pop_1, pop_2, by = c("Name", "GEOID")) %>% 
+  mutate(fem_rte = round(fem_pop/all_age,2)*1000) %>% 
+  select(-year)
+
+#sum(is.na(pop$fem_rte)) # 0
+
+# import 2021 abortion totals
+ab <- read_csv("Exported_Data/2021_abortion_count.csv")
+
+#sum(is.na(ab$Count))
+
+# convert ab$name to list from character
+ab$Name <- as.list(ab$Name)
+
+# join to population totals
+pop_ab <- left_join(pop, ab, by = c("Name" = "Name")) 
+
+# check for NAs 
+#anyNA(pop_ab) # returns TRUE
+
+#which(is.na(pop_ab), arr.ind=TRUE)
+
+#pop_ab[17,] %>% View 
+
+# where is the problem
+
+#anti_join(pop, ab, by = c("Name" = "Name")) %>% View  # DeKalb
+#anti_join(ab, pop, by = c("Name" = "Name")) %>% View  # De Kalb
+
+# De Kalb; in row 15 of ab dataframe needs to be replaced with DeKalb then re-join 
+# reimport ab - need Name column to be list again
+
+ab <- read_csv("Exported_Data/2021_abortion_count.csv")
+
+# rename Dekalb
+ab[15,1] <- "DeKalb"
+
+# convert ab$name to list
+ab$Name <- as.list(ab$Name)
+
+# create new dataframe and calculate rate per 1000
+pop_ab <- left_join(pop, ab, by = c("Name" = "Name")) %>%
+  mutate(rate = round(1000*(Count/fem_pop),1)) 
+
+#anyNA(pop_ab) # FALSE
+
+
+#clean up 
+rm(pop, pop_1, pop_2, pop_data, ab)
+
 ```
 
-
-```{r remove outliers for med_ab data}
-# interquartile range for median income 
-iqr <- IQR(in_med$estimate)
-
-# remove outliers beyond 1.5* interquartile range and recalculate
-
-in_med2 <-  in_med %>% 
-  filter(estimate >= (iqr*1.5)-quantile(in_med$estimate)[2]) %>% 
-  # filters 1.5 interquartile range below quartile 1
-  filter(estimate <= quantile(in_med$estimate)[4]+(iqr*1.5)) 
-
-# filters 1.5 interquartile range above quartile 3
-
-iqr2 <- IQR(in_med2$estimate) # 9453
-# standard deviation
-st_d_2 <- sd(in_med2$estimate)  # returns 7509
-# mean
-mn_2 <- mean(in_med2$estimate)
-
-# add new column for income rating from low income (-li) to high income (-hi) 
-# based on 1.5IQR filtered standard deviation
-
-in_med <- in_med %>% mutate(
-  inc_rating = case_when(
-    estimate <= mn_2-st_d_2 ~ "-li",
-    between(estimate, mn_2-st_d_2, mn_2+st_d_2) ~ "-mi",
-    estimate > mn_2+st_d_2 ~ "-hi"
-  ), .after = moe
-)
-
-
-# calculate abortion rate IQR
-ab_iqr <- IQR(per_cap$rate) # 1.9
-
-# filter abortion rate outliers
-per_cap2 <-  per_cap %>% 
-  filter(rate >= (ab_iqr*1.5)-quantile(per_cap$rate)[2]) %>% 
-  # filters 1.5 interquartile range below quartile 1
-  filter(rate <= ab_iqr*1.5+quantile(per_cap$rate)[4])  
-# filters 1.5 interquartile range above quartile 3
-
-# calculate new measures of location
-ab_iqr2 <- IQR(per_cap2$rate) # 1.5
-# standard deviation with outliers trimmed
-ab_st_d_2 <- sd(per_cap2$rate)  # returns .956
-# mean with outliers trimmed 
-ab_mn_2 <- mean(per_cap2$rate)
-
-# calculate rate and add to abortion rate dataframe
-per_cap <- per_cap %>% mutate(
-  ab_rate = case_when(
-    annual_co_med <= ab_mn_2-ab_st_d_2 ~ "la",
-    between(annual_co_med, ab_mn_2-ab_st_d_2, ab_mn_2+ab_st_d_2) ~ "ma",
-    annual_co_med >= ab_mn_2+ab_st_d_2 ~ "ha"), .after = annual_co_med) 
-
-
-```
-
-```{r import county data; merge}
-# import county geometry and join to totals and population ####
-
+```{r add county geometry, convert to sf, calculate IQR}
+# add geometry for mapping
+# import county geometry for mapping
 options(tigris_use_cache=TRUE)  # cache data
 
 # import geometry for counties and GEOID
-counties <- counties("IN", cb = T) %>% select(GEOID, geometry)
+counties <- counties("IN", cb = T) %>% select(NAME, geometry)
+#colnames(counties)  <- c("Name", "geometry")
 
-# make GEOID character in per_cap
+pop_ab$Name <- as.character(pop_ab$Name)
 
-per_cap$GEOID <- as.character(per_cap$GEOID)
-# join county geometry with totals and population
-per_cap <- left_join(per_cap, counties)
+# join county geometry to dataframe
+pop_ab <- left_join(pop_ab, counties, by= c("Name" ="NAME"))
 
-sf_per_cap <- st_sf(per_cap)
+pop_ab <- st_sf(pop_ab)
 
-# join dataframes and merge ab_rate and inc_rate into one variable
 
-# remove redundant geometry column from per_cap then join
-inc_ab <- per_cap %>% select(-geometry) %>% 
-  left_join(in_med, per_cap, by = "GEOID") %>% 
-  select(-variable)
+# what are the ranges for our data?
 
-# add column for joint ranking
-
-inc_ab <- inc_ab %>% mutate(rank = paste0(ab_rate, inc_rating),
-                            .after = Name)
+#IQR for rate and fem_rte
+pop_ab_r_iqr <- IQR(pop_ab$rate) 
+#pop_ab_r_iqr # 5.025
+pop_ab_f_iqr <- IQR(pop_ab$fem_rte) 
+#pop_ab_f_iqr # 20
 ```
 
-
-```{r create color scheme tibble; join dataframes}
-# create bivariate color scheme ####
-# create tibble for colors 
-
-# With a nod to Josh Stevens explanation of how to create a bivariate map color scheme
-# to keep things straight, visualize 3 x 3 matrix with abortion increasing from
-# left to right in three stages and income increasing from bottom to top. Each 
-# square gets a code to make it easier to keep things straight. 
-
-# a3 b3 c3
-# a2 b2 c2
-# a1 b1 c1
-
-# colors 
-col <- c(
-  "#e8e8e8",  # a1  low abortion - low income       a1: la-li           
-  "#b5c0da",  # b1 medium abortion - low income     b1: ma-li     
-  "#6c83b5",  # c1 high abortion - low income       c1: ha-li    
-  "#b8d6be",  # a2 low abortion - medium income     a2: la-mi
-  "#90b2b3",  # b2 medium abortion - medium income  b2: ma-mi
-  "#567994",  # c2 high abortion - medium income    c2: ha-mi
-  "#73ae80",  # a3 low abortion - high income       a3: la-hi
-  "#5a9178",  # b3 medium abortion - high income    b3: ma-hi
-  "#2a5a5b")  # c3 high abortion - high income      c3: ha-hi
-
-# positions of matrix
-col_pos <- c(
-  "a1",
-  "b1",
-  "c1",
-  "a2",
-  "b2",
-  "c2",
-  "a3",
-  "b3",
-  "c3")
-
-# a description for easy reference 
-
-desc <- c("low abortion - low income",        #a1
-          "medium abortion - low income",     #b1
-          "high abortion - low income",       #c1
-          "low abortion - medium income",     #a2
-          "medium abortion - medium income",  #b2
-          "high abortion - medium income",    #c2
-          "low abortion - high income",       #a3
-          "medium abortion - high income",    #b3
-          "high abortion - high income")      #c3
-
-# a two category code to assign to categories (abortion rate and median income)
-
-rank <- c("la-li", "ma-li", "ha-li", "la-mi", "ma-mi", "ha-mi", "la-hi", "ma-hi",
-          "ha-hi")
-
-# combine into tibble
-
-biv_col <- tibble(pos = col_pos, color = col, rank = rank, desc=desc)
-
-# join biv_color to inc_ab dataframe ####
-# using standard deviation 1.5*IQR abortion rate
-
-biv <- left_join(inc_ab, biv_col, by = "rank") %>% 
-  select(-c(pos, desc, inc_rating))
-
-#Use st_sf() to add crs to per_cap for mapping 
-
-sf_biv <- st_sf(biv)
-```
+```{r}
+pop_ab_f <- bi_class(pop_ab %>% filter(rate >= quantile(pop_ab$rate)[2] - (pop_ab_r_iqr*1.5), 
+                                       rate <= quantile(pop_ab$rate)[3] + (pop_ab_r_iqr*1.5),
+                                       fem_rte  >= quantile(pop_ab$fem_rte)[2] - (pop_ab_f_iqr*2), 
+                                       fem_rte  <= quantile(pop_ab$fem_rte)[3] + (pop_ab_f_iqr*2)),
+                     x = fem_rte, y = rate, style = "jenks", dim = 3, keep_factors = T)
 
 
-```{r calculate label center locations}
-# low abortion, low income county center point
-lali_county <-  sf_biv %>% filter(year == 2021) %>% 
-  select(Name, GEOID, rank, geometry) %>% 
-  filter(rank == "la-li") %>% 
-  slice(2) %>%  # can adjust slice to select needed la-li county
-  # st_coordinates(geometry) %>% 
-  st_centroid(geometry)
 
-lali_county <- do.call(rbind, st_geometry(lali_county))
+# use anti-join to create dataframe of the columns that were filtered out and then 
+# use case_when to create bi_class rating using breaks from bi_scale package
 
-lali_county_x <- lali_county[1]
-lali_county_y <- lali_county[2]
+# $bi_x
+# [1] "13-16" "16-18" "18-23"
+# 
+# $bi_y
+# [1] "0-4.4"    "4.4-8.3"  "8.3-13.8"
 
-# high abortion, high income county center point
-hahi_county <-  sf_biv %>% filter(year == 2021) %>% 
-  select(Name, GEOID, rank, geometry) %>% 
-  filter(rank == "ha-hi") %>% 
-  slice(2) %>%  # can adjust slice to select needed la-li county
-  # st_coordinates(geometry) %>% 
-  st_centroid(geometry)
 
-hahi_county <- do.call(rbind, st_geometry(hahi_county))
+pop_ab_f$geometry <- NULL
+pop_ab$geometry <- NULL
 
-hahi_county_x <- hahi_county[1]
-hahi_county_y <- hahi_county[2]
+ol <- anti_join(pop_ab, pop_ab_f) %>% 
+  mutate(bi_class = case_when(
+    fem_rte < 16 ~ "1-",
+    fem_rte %in% 16:18 ~ "2-",
+    fem_rte > 18 ~ "3-"))%>% 
+  mutate(bi_class = case_when(
+    rate < 4.4 ~ paste0(bi_class,"1"),
+    rate > 4.4 & rate < 8.3 ~ paste0(bi_class, "2"),
+    rate > 8.3 ~ paste0(bi_class, "3")))
 
-# high abortion, low income county center point
-hali_county <-  sf_biv %>% filter(year == 2021) %>% 
-  select(Name, GEOID, rank, geometry) %>% 
-  filter(rank == "ha-li") %>% 
-  slice(1) %>%  # can adjust slice to select needed la-li county
-  # st_coordinates(geometry) %>% 
-  st_centroid(geometry)
+# join ol (outlier) dataframe to dataframe with outliers removed
+pop_ab <- full_join(pop_ab_f, ol)
 
-hali_county <- do.call(rbind, st_geometry(hali_county))
+# add geometry back to dataframe
+pop_ab <- left_join(pop_ab, counties, by= c("Name" ="NAME"))
 
-hali_county_x <- hali_county[1]
-hali_county_y <- hali_county[2]
-
-# low abortion, high income county center point
-lahi_county <-  sf_biv %>% filter(year == 2021) %>% 
-  select(Name, GEOID, rank, geometry) %>% 
-  filter(rank == "la-hi") %>% 
-  slice(1) %>%  # can adjust slice to select needed la-li county
-  # st_coordinates(geometry) %>% 
-  st_centroid(geometry)
-
-lahi_county <- do.call(rbind, st_geometry(lahi_county))
-
-lahi_county_x <- lahi_county[1]
-lahi_county_y <- lahi_county[2]
-
-# before plotting, add panel color
-panel_c <- "#fdfdf2"
+pop_ab <- st_sf(pop_ab)
 ```
 
 ```{r create legend}
+panel_c <- "#fdfdf2"
 
-# create legend: ####
-# build dataframe with rankings from abortion rate rank and median income rank
-mk_leg <- inc_ab %>% select(rank, ab_rate, inc_rating, estimate, annual_co_med)
-# join to color dataframe biv_col
-mk_leg <- left_join(mk_leg, biv_col, by = "rank")
-# convert character ranking code to numeric
-mk_leg <- mk_leg %>% 
-  mutate(ab_rate =
-           case_when(
-             ab_rate == "ha" ~ 3,
-             ab_rate == "ma" ~ 2,
-             ab_rate == "la"~ 1),
-         inc_rating = 
-           case_when(
-             inc_rating == "-hi" ~ 3,
-             inc_rating == "-mi" ~ 2,
-             inc_rating == "-li" ~ 1)
-  )
-# create legend plot ####
-legend <- ggplot()+
-  geom_tile(
-    data = mk_leg,
-    mapping = aes(
-      x = ab_rate,
-      y = inc_rating,
-      fill = color)
-  ) +
-  scale_fill_identity() +
-  labs(
-    x = paste0("Increasing abortion  ", "\U2192"),
-    y = paste0("Increasing income    ", "\U2192")
-  )+
-  theme_void()+
-  
+
+legend <- bi_legend(pal = "DkCyan",
+                    dim = 3,
+                    xlab = "  Rate 20-34 females ",
+                    ylab = "  Abortion rate",
+                    size = 8,)+
   theme(
-    axis.title.x = element_text(size = 8,
-                                hjust = .8),
-    axis.title.y = element_text(size = 8,
-                                vjust = 0,
-                                hjust = 1,
-                                angle = 90),
-    axis.text = element_blank()
-  )+
-  coord_fixed(ratio = 1:1)
+    plot.background = element_rect(fill = panel_c, color = panel_c,),
+    panel.background = element_rect(fill = panel_c)
+  )
 ```
 
+```{r import age abortion data for headline data}
+# import abortion age data for headline purposes
+ab_age <- read_csv("Exported_Data/ab_age.csv")
+```
 
-```{r add titles, captions make plot}
-# titles and captions ####
-title <- "Indiana county abortion rate and median household income"
-s_title <- "Average abortion rate per 1,000 females of childbearing age and median household income from 2017 to 2021.<br>"
-caption <- "<br><br>**Abortion data**: in.gov/health/vital-records/vital-statistics/terminated-pregnancy-reports/ <br>
-**Income data**: 5 year American Community Survey: 2021 Median household income in the past 12 months.<br><br> Plot by Ted Schurter 2023"
+```{r create x and y coordinates for county labels}
+# create x and y label coordinates ####
+# low low classification
+ll <- pop_ab %>% filter(bi_class == "1-1") %>% slice(6) %>%  
+  # use slice adjust county as needed
+  st_centroid(geometry) %>% select(geometry) 
 
-# plot ####
-p <- 
-  ggplot()+
-  geom_sf(data = sf_biv %>% filter(year == 2021),
-          aes(fill=color),
-          color = "white",
-          size = 0.1,
-          alpha = .95,
-          show.legend = F)+
-  scale_fill_identity()+
-  # expand area around map to accomodate text labels
-  coord_sf(xlim = c(-89, -84),
-           ylim = c(37.75, 41.65),
-           expand = TRUE)+
-  theme_void()+
-  theme(
-    plot.margin = unit(c(.25, 1, 3, 1), "cm")
-  )+
-  #  main labels ####
-labs(
-  title = title,
-  subtitle = s_title,
-  caption = caption
-)+
-  # theme adjustments ####
-theme(
-  axis.text = element_blank(),
-  axis.ticks = element_blank(),
-  axis.line = element_blank(),
-  panel.background = element_rect(color = NA,
-                                  fill = panel_c),
-  plot.background  = element_rect(color = NA,
-                                  fill = panel_c),
-  plot.title = element_textbox_simple(
-    size = 22, lineheight = 1, family = "serif", padding = margin(.5, 5, 3, 1)),
-  plot.subtitle = element_textbox_simple(
-    size = 14, lineheight = 1, family = "sans", padding = margin(2, 0, 1, 0)),
-  plot.caption = element_textbox_simple(
-    size = 10, lineheight = 1.2, family = "sans", padding = margin(.5, 0, 1, 0),
-    halign = 1),
-  plot.caption.position = "plot"
-)+
-  # map annotations #### 
-# low abortion low income county curve
-geom_curve( 
+ll <- do.call(rbind, st_geometry(ll))
+
+ll_x <- ll[1] 
+ll_y <- ll[2]
+
+# low high 
+lh <- pop_ab %>% filter(bi_class == "1-3") %>% slice(1) %>%  
+  # use slice adjust county as needed
+  st_centroid(geometry) %>% select(geometry) 
+
+lh <- do.call(rbind, st_geometry(lh))
+
+lh_x <- lh[1]
+lh_y <- lh[2]
+
+# 
+
+# high low
+
+hl <- pop_ab %>% filter(bi_class == "3-1") %>% slice(1) %>%  
+  # use slice adjust county as needed
+  st_centroid(geometry) %>% select(geometry) 
+
+hl <- do.call(rbind, st_geometry(hl))
+
+hl_x <- hl[1]
+hl_y <- hl[2]
+
+# high high
+
+hh <- pop_ab %>% filter(bi_class == "3-3") %>% slice(5) %>%  
+  # use slice adjust county as needed
+  st_centroid(geometry) %>% select(geometry) 
+
+hh <- do.call(rbind, st_geometry(hh))
+
+hh_x <- hh[1]
+hh_y <- hh[2]
+```
+
+```{r create map}
+map2 <- 
+  ggplot() +
+  geom_sf(data = pop_ab, mapping = aes(fill = bi_class), color = "white", size = 0.1, show.legend = FALSE) +
+  bi_scale_fill(pal = "DkCyan", dim = 3)+
+  ylim(37.85,41.75)+
+  # low abortion low income county curve ####
+geom_curve(
   aes(
-    x = lali_county_x/1.009,
-    xend = lali_county_x,
-    y = lali_county_y*1.004,
-    yend = lali_county_y),
-  curvature = -.2,
-  linewidth = .75,
-  color = "dark gray",
-  arrow = arrow(
-    length = unit(.2, "cm")))+  
+    x = ll_x/.992,
+    xend = ll_x-.2,
+    y = ll_y*1.012,
+    yend = ll_y),
+  curvature = .2,
+  linewidth = .5,
+  color = "#6F7378",
+  arrow = arrow(length = unit(.2, "cm")))+ #low abortion low income county text
+  annotate("text", ll_x/.984, ll_y*1.02,
+           colour = "#6F7378",
+           size = 3.15,
+           label = "Light gray counties:\nlow abortion, few\n20 to 34 year-olds.",
+           lineheight = .9,
+           hjust=0)+
+  # low high curve and label
+  geom_curve(
+    aes(
+      x = lh_x*.978,
+      xend = lh_x,
+      y = lh_y/1.001,
+      yend = lh_y),
+    curvature = -.28,
+    linewidth = .55,
+    color = "#6F7378",
+    arrow = NULL)+#arrow(length = unit(.2, "cm")))+
   # low abortion low income county text
-  annotate("text", lali_county_x/1.005, lali_county_y*1.008,
-           colour = "black",
-           size = 3.5,
-           label = "Light gray counties\nmean low abortion\nand low income",
+  annotate("text", lh_x*.981, lh_y/.995,
+           colour = "#6F7378",
+           size = 3.15,
+           label = "Green counties:\nhigh abortion, few\n20 to 34 year-olds.",
            lineheight = .9,
            hjust=0
   )+
-  # high abortion high income county curve
-  geom_curve( 
+  # high low curve and label
+  geom_curve(
     aes(
-      x = hahi_county_x*1.009,
-      xend = hahi_county_x,
-      y = hahi_county_y/1.003,
-      yend = hahi_county_y),
-    curvature = .2,
-    linewidth = .75,
-    color = "dark gray",
+      x = hl_x*.985,
+      xend = hl_x+.25,
+      y = hl_y*1.015,
+      yend = hl_y),
+    curvature = -.3,
+    linewidth = .5,
+    color = "#6F7378",
     arrow = arrow(
       length = unit(.2, "cm")))+
-  # high abortion high income county text
-  annotate("text", hahi_county_x*1.019, hahi_county_y/1.001,
-           colour = "black",
-           size = 3.5,
-           label = "Dark bluegreen counties\nmean high abortion\nand high Income",
+  # low abortion low income county text
+  annotate("text", hl_x*.987, hl_y*1.022,
+           colour = "#6F7378",
+           size = 3.15,
+           label = "Blue counties:\nlow abortion, many\n20 to 34 year-olds.",
            lineheight = .9,
-           hjust = 0
+           hjust=0
   )+
-  # high abortion, low income county curve
-  geom_curve( 
+  #high high curve and label
+  geom_curve(
     aes(
-      x = hali_county_x*1.009,
-      xend = hali_county_x,
-      y = hali_county_y/1.004,
-      yend = hali_county_y),
-    curvature = -.2,
-    linewidth = .75,
-    color = "dark gray",
+      x = hh_x+.8,
+      xend = hh_x+.25,
+      y = hh_y,
+      yend = hh_y),
+    curvature = 0,
+    linewidth = .5,
+    color = "#6F7378",
     arrow = arrow(
       length = unit(.2, "cm")))+
-  # high abortion, low income county text
-  annotate("text", hali_county_x*1.0137, hali_county_y/1.0075,
-           colour = "black",
-           size = 3.5,
-           label = "Blue counties\nmean high abortion\nand low income",
+  # high abortion high 20-34 county text
+  annotate("text", hh_x+.88, 
+           hh_y,
+           colour = "#6F7378",
+           size = 3.15,
+           label = "Dark green counties:\nhigh abortion, many\n20 to 34 year-olds.",
            lineheight = .9,
-           hjust = 0
+           hjust=0
   )+
-  # low abortion, high income county curve
-  geom_curve( 
-    aes(
-      x = lahi_county_x/1.009,
-      xend = lahi_county_x/1.0025,
-      y = lahi_county_y*1.004,
-      yend = lahi_county_y),
-    curvature = -.2,
-    linewidth = .75,
-    color = "dark gray",
-    arrow = arrow(
-      length = unit(.2, "cm")))+
-  # low abortion, high income county curve  
-  annotate("text", lahi_county_x/1.004, lahi_county_y*1.0085,
-           colour = "black",
-           size = 3.5,
-           label = "Green counties\nmean low abortion\nand high income",
+  # blank annotation to extend right margin (xlim removes annotations and curves)
+  annotate("text", hh_x/1.027, hh_y*1.013,
+           colour = "#6F7378",
+           size = 3.15,
+           label = "",
            lineheight = .9,
-           hjust = 0
-  )
-
-# combine plot and legend and save
-p2 <- 
-  ggdraw() +
-  draw_plot(p, 0, -.05, 1, 1) +
-  draw_plot(legend, x=0.77, y=0.14, 0.13, 0.13, scale = 1.2)+
-  theme(plot.background = element_rect(fill = panel_c, color = NA))
-
-
-```
-
-```{r fig.width = 8.5, fig.height = 11 }
-p2
-```
-
-
-
-Procedures over time
-===================================== 
-
-<style>
-.main-container {
-  max-width: 100% !important;
-}
-</style>
-
-```{r include = F}
-
-knitr::opts_chunk$set(eval = T,
-                      echo = F,
-                      include = T,
-                      warning = F,
-                      dev = "png",
-                      dpi = 200,
-                      cache = FALSE,
-                      fig.align  = "left",
-                      fig.width  =  10,
-                      fig.height =  5.46,
-                      #fig.asp = 1.83,
-                      out.width  = "100%",
-                      out.height = "100%"
-                      )
-
-```
-
-```{r import_proc_data, echo=FALSE, include = F, message=F, warning=F}
-
-proc_14_18 <- read_csv("Exported_Data/procedure_14_18.csv")
-proc_19_21 <- read_csv("Exported_Data/procedure_19_21.csv")
-proc_14_18_consol <- read_csv("Exported_Data/procedure_14_18_consol.csv")
-proc_14_18_surg_consol <- read_csv("Exported_Data/proc_14_18_surg_consol.csv")
-proc_tot <- read_csv("Exported_Data/proc_tot.csv")
-med_cng <- read_csv("Exported_Data/med_cng.csv")
-surg_cng <- read_csv("Exported_Data/surg_cng.csv")
-
-```
-
-```{r proc_line_segments}
-# medical segment start
-rx_seg_1 <-  proc_14_18 %>% filter(year == 2018) %>% 
-  filter (Procedure == "Mifepristone Misoprostol") %>% pull()
-# medical segment end
-rx_seg_2 <-  proc_19_21 %>% filter(year == 2019) %>% 
-  filter (Procedure == "Medical") %>% pull()
-# surgical segment start 
-sg_seg_1 <-  proc_14_18_consol %>% filter(year == 2018) %>% 
-  filter (Procedure == "Surgical") %>% pull()
-# surgical segment end
-sg_seg_2 <-  proc_19_21 %>% filter(year == 2019) %>% 
-  filter (Procedure == "Surgical") %>% pull()
-```
-
-
-```{r assign_proc_colors}
-panel_c <- "#fdfdf2" 
-body_text <- "black"
-procedure_colors <- list(
-  "Medical" = "#9db6c9",
-  "Medical (Surgical)" = "#9db6c9",
-  "Mifepristone Misoprostol" = "#9db6c9",
-  "Surgical" = "#029ba2",
-  "Suction Curettage"  = "#029ba2",
-  "Dilation Evacuation" = "#029ba2",
-  "surgical other" = "#029ba2")
-
-```
-
-```{r proc_labels_annotations}
-surg_def_lab <- paste(
-  "<span style = 'color:",procedure_colors$'Suction Curettage',";'>Surgical procedures</span>
-  <span style = 'color:",body_text,";'>including</span>
-  <span style = 'color:",procedure_colors$'Suction Curettage',";'>menstrual 
-  aspiraiton, suction curetttage, dilation and evacuation, and 'surgical other.'</span>")
-
-surg_def_lab <- paste(
-  "<span style = 'color:",body_text,";'>All</span>
-  <span style = 'color:",procedure_colors$'Suction Curettage',";'>surgical</span>
-  <span style = 'color:",body_text,";'>procedures including</span>
-  <span style = 'color:",procedure_colors$'Suction Curettage',";'>suction curettage</span>")
-
-# medical line label
-med_lab <- paste(
-  "<span style = 'color:",procedure_colors$Medical,";'>Medical Procedures</span>")
-
-# suction curettage label
-sc_lab <- paste(
-  "<span style = 'color:",procedure_colors$'Suction Curettage',";'>Suction curettage</span> 
-  <span style = 'color:",body_text,";'>only</span>")
-
-# all surgical label
-surg_lab <- paste(
-  "<span style = 'color:",procedure_colors$'Suction Curettage',";'>Surgical Procedures</span>")
-
-# non sc surgical types label
-non_sc_surg <- paste(
-  "<span style = 'color:",body_text,";'>All procedures reported as</span>
-  <span style = 'color:",procedure_colors$'Suction Curettage',";'>surgical</span>
-  <span style = 'color:",body_text,";'>except</span>
-  <span style = 'color:",procedure_colors$'Suction Curettage',";'>suction curetttage,</span>
-  <span style = 'color:",body_text,";'>including</span>
-  <span style = 'color:",procedure_colors$'Suction Curettage',";'>dilation and 
-  evacuation, 'medical (surgical)', menstrual aspiration, and 'surgical other.'</span>")
-
-```
-
-```{r proc_titles_captions}
-pct_title <- paste(
-  "<span style = 'color:",procedure_colors$Medical,";'>Medical</span>
-  abortion procedures grew an average</span>
-  <span style = 'color:",procedure_colors$Medical,";'>",
-  paste(round(sum(med_cng$pct_cng, na.rm=T)/length(proc_tot$year),2),'%'),"</span>
-  annually from 2014 to 2021 and eclipsed</span>
-  <span style = 'color:",procedure_colors$Surgical,";'>surgical</span>
-  procedures, which declined an average</span>
-  <span style = 'color:",procedure_colors$Surgical,";'>",
-  paste(abs(round(sum(surg_cng$pct_cng, na.rm=T)/length(proc_tot$year),2)),"%"),
-  "</span>
-  annually, as the predominant abortion procedure in 2019. The rate for all 
-  abortions increased an average</span>
-  <span style = 'color:gray;'>",
-  round(sum(proc_tot$pct_cng, na.rm=T)/length(proc_tot$year),2),"%</span>
-  annually."
-)
-
-subtitle <- paste(
-  "<br><span style = 'color:",procedure_colors$Surgical,";'>Suction curettage</span><span style = 'color:",body_text,";'> can be identified as the most common</span><span style = 'color:",procedure_colors$Surgical,";'> surgical</span><span style = 'color:",body_text,";'> procedure until 2018 when Indiana consolidated all distinct</span><span style = 'color:",procedure_colors$Surgical,";'> surgical</span> procedures into one category.<br></span>")
-
-
-```
-
-```{r proc_plot}
-p2 <- ggplot()+
-  # 2014:2018 medical data
-  geom_line(data=proc_14_18 %>% 
-              filter(Procedure =="Mifepristone Misoprostol"),
-            aes(year, Count, group=Procedure),
-            size = 1.25, color=procedure_colors$Medical,show.legend=F)+
-  # 2014:2018 suction curettage data
-  geom_line(data=proc_14_18 %>% 
-              filter(Procedure =="Suction Curettage"),
-            aes(year, Count, group=Procedure),
-            size = .5, linetype = "solid", show.legend=F,
-            color=procedure_colors$Surgical)+
-  # 2014:2018 surgical non suction-curettage 
-  geom_line(data=proc_14_18_surg_consol %>% filter(Procedure=="Surgical"),
-            aes(year, Count, group=Procedure),
-            size = .5, linetype = "dashed", show.legend=F,
-            color=procedure_colors$Surgical)+
-  # medical line with data from 2019:2021
-  geom_line(data=proc_19_21 %>% filter(Procedure == "Medical"), 
-            aes(year, Count, group=Procedure),
-            size = 1.25, show.legend=F, color=procedure_colors$Medical)+
-  # surgical line with data from 2019:2021
-  geom_line(data=proc_19_21 %>% filter(Procedure == "Surgical"), 
-            aes(year, Count, group=Procedure),
-            color=procedure_colors$Surgical,
-            size = 1.25, show.legend=F, linetype = "solid")+
-  # line segment to connect medical lines from 2018:2019
-  geom_segment(aes(
-    x = 2018, xend = 2019,
-    y = rx_seg_1, yend = rx_seg_2),
-    show.legend=F, size = 1.25, color = procedure_colors$Medical)+
-  geom_segment(aes(
-    x = 2018, xend = 2019,
-    y = sg_seg_1, yend = sg_seg_2),
-    show.legend=F, size =1.25, color = procedure_colors$Surgical, linetype="solid")+
-  # line for total number of abortions over time
-  geom_line(data=proc_tot, 
-            aes(year, total, group = "year"),
-            size = .35, show.legend=F, linetype = "solid",
-            color= "gray")+
-  # dashed line for average number of abortions
-  # geom_line(data=proc_tot, 
-  #           aes(year, mean(total), group = "year"),
-  #           size = .35, show.legend=F, linetype = "dashed",
-  #           color= "gray")+
-  # 0 baseline on x axis
-  geom_segment(aes(x=2014, xend=2021,
-                   y = 0, yend=0),
-               size=.1, color="light gray")+
-  scale_x_discrete(expand = expansion(add = 1.5))+
-  scale_x_continuous(breaks = c(2014,2015,2016,2017, 2018, 2019, 2020, 2021, 2022),
-                     limits = c(2014, 2022),
-                     labels = c("2014","2015","2016","2017", "2018", "2019",
-                                "2020", "2021", ""))+
-  scale_y_continuous(labels = scales::comma)+
-  # annotations ####
-# total label
-annotate("text_box", x=2021, y = proc_tot$total[proc_tot$year == "2021"],
-         label = "All Procedures", color = "gray", lineheight = 1,
-         width = unit(1.5, "inch"), hjust = 0, vjust = .5, box.color=panel_c, 
-         fill = panel_c, size = 4)+
-  # surgical label  
-  annotate("text_box", x=2021, y = pull(proc_19_21[proc_19_21$Procedure =="Surgical" & 
-                                                  proc_19_21$year=="2021" & proc_19_21$Count,3]),
-           label = surg_lab, color = panel_c, lineheight = 1,
-           width = unit(1.5, "inch"), hjust = 0, vjust = .5, box.color=panel_c, 
-           fill = panel_c, size = 4)+
-  # medical label  
-  annotate("text_box", x=2021, y = pull(proc_19_21[proc_19_21$Procedure =="Medical" & 
-                                                  proc_19_21$year=="2021" & proc_19_21$Count,3]),
-           label = med_lab, color = panel_c, lineheight = 1,
-           width = unit(1.5, "inch"), hjust = 0, vjust = .5, box.color=panel_c, 
-           fill = panel_c, size = 4)+
-  # suction curettage label
-  annotate("text_box", x=2018, 
-           y = pull(proc_14_18[proc_14_18$Procedure =="Suction Curettage"& 
-                                 proc_14_18$year=="2018" &proc_14_18$Count,3]),
-           label = sc_lab, color = panel_c, lineheight = 1,
-           hjust =1, vjust = 1.25, box.color=panel_c, 
-           fill = panel_c, size = 2.5, halign = 1)+
-  # surgical definition post 2018 label
-  annotate("text_box", x=2018, 
-           y = pull(proc_14_18[proc_14_18$Procedure =="Suction Curettage"& 
-                                 proc_14_18$year=="2018" &proc_14_18$Count,3]),
-           label = surg_def_lab, color = panel_c, lineheight = 1.2,
-           hjust =0, vjust = -.25, box.color=panel_c, 
-           fill = panel_c, size = 2.5, halign = 0,width = unit(1.5, "inch"))+
-  # vertical line denoting end of data with surgical subtypes
-  geom_segment(aes(x=2018,xend=2018, 
-                   y = 700+pull(proc_14_18[proc_14_18$Procedure =="Suction Curettage"& 
-                                             proc_14_18$year=="2018" & proc_14_18$Count,3]),
-                   yend=-700+pull(proc_14_18[proc_14_18$Procedure =="Suction Curettage"& 
-                                               proc_14_18$year=="2018" & proc_14_18$Count,3])),
-               color="dark gray", linetype = "solid",
-               size = .25, show.legend = F)+
-  # # non sc pre 2018 label
-  annotate("text_box", x=2018, 
-           y = pull(proc_14_18_surg_consol[proc_14_18_surg_consol$year == "2018" &
-                                             proc_14_18_surg_consol$Procedure == "Surgical" & 
-                                             proc_14_18_surg_consol$Count,3]),
-           label = non_sc_surg, color = panel_c, lineheight = 1,
-           width = unit(2, "inch"), hjust =1, vjust = -.05, box.color=panel_c, 
-           fill = panel_c, size = 2.5, halign = 1)+
-  #  theme adjustments ####  
-theme_classic()+
+           hjust=0
+  )+
+  # blank annotation to extend left margin (xlim removes annotations and curves)
+  annotate("text", hh_x*1.043, hh_y*1.013,
+           colour = "#6F7378",
+           size = 3.15,
+           label = "",
+           lineheight = .9,
+           hjust=0
+  )+
+  t_theme()+
   theme(
-    #axis.line.y = element_line(color="light gray", size = .05),
+    panel.grid.major.y = element_blank(),
+      #panel.grid.major.y = element_blank(),
+      panel.grid.major.x = element_blank(), 
+    plot.background = element_rect(fill=panel_c, color = panel_c),
+    panel.background = element_rect(fill=panel_c, color = panel_c),
+    axis.text = element_blank(),
+     axis.title.y = element_blank(),
+    axis.title.x = element_blank(),
     axis.line = element_blank(),
     axis.ticks = element_blank(),
-    axis.title = element_blank(),
-    axis.text = element_text(size = 7,
-                             color = "dark gray"),
-    panel.background = element_rect(fill=panel_c),
-    plot.title = element_textbox_simple(
-      size = 16, lineheight = 1, family = "serif", padding = margin(0, 0, 1, 0)),
-    plot.subtitle = element_textbox_simple(
-      size = 12, lineheight = 1, family = "sans", padding = margin(0, 0, 1, 0)),
-    plot.background = element_rect(fill = panel_c, 
-                                   color = "black",
-                                   size = .35),
-    
-    plot.title.position = "plot",
-    plot.margin = unit(c(.5, .5, .5, .5), "cm"),
-    plot.caption = element_markdown(color = "gray", hjust = 1),
-    legend.position = "none"
+    plot.margin = margin(0, .5, 0, .5, unit = "cm")
   )+
   labs(
-    title = pct_title,
-    subtitle  = subtitle,
-    caption = "Abortion Data: in.gov/health/vital-records/vital-statistics/terminated-pregnancy-reports/")
+    subtitle = paste0("Women in this age range are ", 
+                      round(sum(pop_ab$fem_pop)/sum(pop_ab$all_age)*100),
+                      "% of the female population and receive ",
+                      round(ab_age %>% filter(num %in% 4:6 & year == 2021) %>% summarise(sum(pct))),
+                      "% of all abortions."),
+    title = paste0(broman::spell_out(pop_ab %>% filter(bi_class == '3-3') %>% nrow(), capitalize = TRUE),
+                   " Indiana counties have a high rate of abortion and a high rate of women 
+               between 20 and 34 years old; ",
+                   broman::spell_out(pop_ab %>% filter(bi_class == '1-1') %>% nrow(), capitalize = TRUE),
+                   " counties have low rates of both."),
+    caption = paste0("<br>**Data:** 'www.in.gov/health/vital-records/vital-statistics/terminated-pregnancy-reports'
+   'www2.census.gov/programs-surveys/popest/datasets/2020-2021/counties/asrh/cc-est2021-agesex-18.csv'
+   \n**Graphic:** Ted Schurter 2023"))
 
+finalPlot2 <- ggdraw() +
+  draw_plot(map2, x =0, y= 0.015, width = 1, height = 1) +
+  draw_plot(legend, x= 0.74, y = .13, width = 0.22, height = 0.22)+
+  theme(
+    plot.background = element_rect(fill = panel_c, color = panel_c)
+  )
 ```
 
 
-```{r proc_display_plot}
-p2
-
+```{r, fig biv map, fig.height = 7 }
+finalPlot2
 ```
 
 
 
-Procedure type<br>by gestational age
+
+Abortion procedure type<br>by gestational age {data-navmenu="Charts"}
 ===================================== 
 
-<style>
-.main-container {
-  max-width: 100% !important;
-}
-</style>
+
 
 ```{r include = F}
 
@@ -990,7 +706,7 @@ rx_c <- "#9db6c9"
 rx_c_txt <- "#9db6c9" 
 de_c <- "#029ba2"
 de_c_txt <- "#029ba2" 
-body_text <- "#000000"
+body_text <- "gray30"
 
 type_colors <- c("sc" = sc_c,
                  "rx" = rx_c,
@@ -1000,11 +716,10 @@ type_colors <- c("sc" = sc_c,
 ```{r titles_labels}
 # create titles and labels
 title <-  paste(
-  "<span style = 'color:",body_text,";font-size:17pt'>Nearly all abortions in Indiana
-  happen by 13 weeks of gestational age.</span>")
+  "<span style = 'color:",body_text,";font-size:17pt'>Nearly all abortions in Indiana between 2014 and 2021 occured by 13 weeks of gestational age.</span>")
 #
 subtitle <- paste(
-  "<br><span style  = 'color:",body_text,";'>In 2018 Indiana reduced the classification 
+  "<span style  = 'color:",body_text,";'>In 2018 Indiana reduced the classification 
   of procedures in its annual terminated pregancy reports to</span>
   <span style = 'color:",rx_c_txt,";'>medical</span> or
   <span style = 'color:",sc_c,";'>surgical</span>. 
@@ -1081,24 +796,27 @@ ggplot(gp)+
                    breaks = NULL,
                    labels = NULL)+
   scale_y_continuous(name = "",
-                     breaks = c(-30,0,if_else(gp$pct_age_all>1,gp$pct_age_all,NULL), 100),
-                     labels = c("",paste(0,""),paste(if_else(gp$pct_age_all>1,gp$pct_age_all,NULL),"%"),"100%"))+
+                     breaks = c(-30,0,if_else(gp$pct_age_all>1,gp$pct_age_all,0), 100),
+                     labels = c("",paste(0,""),paste(if_else(gp$pct_age_all>1,gp$pct_age_all,0),"%"),"100%"))+
   scale_fill_manual(values = type_colors)+
-  theme_classic()+
+  t_theme()+
   # theme adjustments ####
 theme(
+  panel.grid.major.y = element_blank(),
+      #panel.grid.major.y = element_blank(),
+      panel.grid.major.x = element_blank(),
   axis.line.y = element_blank(),
   axis.line.x = element_blank(),
   axis.ticks.x = element_blank(),
   axis.ticks.y = element_blank(),
   panel.grid = element_blank(),
   panel.background = element_rect(fill = panel_c),
-  plot.background = element_rect(color = "black", fill  = panel_c, size = .35),
+  plot.background = element_rect(color = panel_c, fill  = panel_c, size = .35),
   axis.text.x = element_text(size  = 7,
-                             color = body_text,
+                             color = "gray55",
                              hjust = 0),
   axis.text.y = element_text(size  = 7,
-                             color = body_text),
+                             color = "gray55"),
   # strip.text.x = element_text(size = 8,
   #                             color = "dark gray"),
   axis.title.y = element_markdown(angle = 0,
@@ -1110,21 +828,24 @@ theme(
                                   size  = 9,
                                   color = body_text,
                                   vjust = .5),
-  plot.title = (plot.title = element_textbox_simple(
-    lineheight = 1, padding = margin(0, 0, 1, 0),
-    family = "serif", size = 19
-  )),
-  plot.subtitle = element_textbox_simple(
-    size = 11, lineheight = 1, family = "sans", padding = margin(0, 0, 5, 0)),
+  # plot.title = (plot.title = element_textbox_simple(
+  #   lineheight = 1, padding = margin(0, 0, 1, 0),
+  #   family = "serif", size = 19
+  # )),
+  # plot.subtitle = element_textbox_simple(
+  #   size = 11, lineheight = 1, family = "sans", padding = margin(0, 0, 5, 0)),
   plot.title.position = "plot",
   plot.margin = unit(c(.5, .5, .5, .5), "cm"),
-  plot.caption = element_markdown(color = "gray", hjust = 1),
+  # plot.caption = element_textbox_simple(family = "sans", size = 7,
+  #                                         color = "gray40", halign = 1,
+  #                                         lineheight = 1.2),
   legend.position = "none"
 )+
   labs(
     title = title,
     subtitle  = subtitle,
-    caption = "Abortion Data:in.gov/health/vital-records/vital-statistics/terminated-pregnancy-reports/"
+    caption = "**Abortion Data:** 'www.in.gov/health/vital-records/vital-statistics/terminated-pregnancy-reports/'<br>
+    **Graphic:** Ted Schurter 2023"
   ) +
   # annotations and markers above 0 on x axis ####
 # rx abortion label
@@ -1227,41 +948,26 @@ geom_segment(x=.55, xend = 2.20, y = -14.5, yend = -14.5, color="light gray", si
            label = sc_lab,
            size = 3, hjust = 0, color="black", box.color=panel_c,vjust = 1,
            fill = NA, label.colour = panel_c, lineheight = 1,width = unit(1.45, "inch"))+
-             #unit(1.65, "inch"))+
-  # dc label# dc label
+            
+  # dc label
   annotate("text_box",
            x=5.31, y=-21.5,
            #x=5.55, y=-21.5,
            label = dc_lab,
            size = 3, hjust = 0, color="black", box.color=panel_c,vjust = 1,
            fill = NA, label.colour = panel_c, lineheight = 1,width = unit(1.3, "inch"))+
-             #unit(1.5, "inch"))+
-  # segment for surgical D&E abortion label
-  # geom_segment(x=3.72, y = -23, xend = 3.72, yend = -17, color = sc_c, size = .15,
-  #              arrow = arrow(length = unit(0.1, "cm")))+
-  # geom_segment(x=3.72, y = -23, xend = 6.75, yend = -23, color = sc_c, size = .15)+
-  # geom_segment(x=6.75, y = -23, xend = 6.75, yend = -17, color = sc_c, size = .15,
-  #              arrow = arrow(length = unit(0.1, "cm")))+
-  # geom_segment(x=4, y = -23, xend = 4, yend = -27, color = sc_c, size = .15,
-  #           arrow = NULL)+
   annotate("text_box",
            x=6.91, y=-21.5,
            #x=7.15, y=-21.5,
            label = de_lab,
            size = 3, hjust = 0, color="black", box.color=panel_c, vjust = 1,
            fill = NA, label.colour = panel_c, lineheight = 1, width = unit(1.7, "inch"))+
-             #unit(1.85, "inch"))+
-  # annotate("text_box",x=7.75, y=-21.5,
-  #          label = rep_lab,
-  #          size = 3.75, hjust = 0, color="black", box.color=panel_c, vjust = 1,
-  #          fill = NA, label.colour = panel_c, lineheight = 1, width = unit(3, "inch"))+
   annotate("text_box",
            x=8.81, y=-21.5,
            #x=9.2, y=-21.5,
            label = dx_lab,
            size = 3, hjust = 0, color="black", box.color=panel_c, vjust = 1,
            fill = NA, label.colour = panel_c, lineheight = 1, width = unit(1.7, "inch"))+
-             #unit(1.75, "inch"))+
   # hidden line used to ensure appropriate depth for labels
   geom_hline(x=0, xend=11.4, yintercept = -85, color = panel_c, size =1)
  
@@ -1269,15 +975,789 @@ geom_segment(x=.55, xend = 2.20, y = -14.5, yend = -14.5, color="light gray", si
 
 
 
-
-Abortions by race
+Abortion procedures over time {data-navmenu="Charts"}
 ===================================== 
 
-<style>
-.main-container {
-  max-width: 100% !important;
-}
-</style>
+
+```{r include = F}
+
+knitr::opts_chunk$set(eval = T,
+                      echo = F,
+                      include = T,
+                      warning = F,
+                      dev = "png",
+                      dpi = 200,
+                      cache = FALSE,
+                      fig.align  = "left",
+                      fig.width  =  10,
+                      fig.height =  5.46,
+                      #fig.asp = 1.83,
+                      out.width  = "100%",
+                      out.height = "100%"
+                      )
+
+```
+
+```{r import_proc_data, echo=FALSE, include = F, message=F, warning=F}
+
+proc_14_18 <- read_csv("Exported_Data/procedure_14_18.csv")
+proc_19_21 <- read_csv("Exported_Data/procedure_19_21.csv")
+proc_14_18_consol <- read_csv("Exported_Data/procedure_14_18_consol.csv")
+proc_14_18_surg_consol <- read_csv("Exported_Data/proc_14_18_surg_consol.csv")
+proc_tot <- read_csv("Exported_Data/proc_tot.csv")
+med_cng <- read_csv("Exported_Data/med_cng.csv")
+surg_cng <- read_csv("Exported_Data/surg_cng.csv")
+
+```
+
+```{r proc_line_segments}
+# medical segment start
+rx_seg_1 <-  proc_14_18 %>% filter(year == 2018) %>% 
+  filter (Procedure == "Mifepristone Misoprostol") %>% pull()
+# medical segment end
+rx_seg_2 <-  proc_19_21 %>% filter(year == 2019) %>% 
+  filter (Procedure == "Medical") %>% pull()
+# surgical segment start 
+sg_seg_1 <-  proc_14_18_consol %>% filter(year == 2018) %>% 
+  filter (Procedure == "Surgical") %>% pull()
+# surgical segment end
+sg_seg_2 <-  proc_19_21 %>% filter(year == 2019) %>% 
+  filter (Procedure == "Surgical") %>% pull()
+```
+
+
+```{r assign_proc_colors}
+panel_c <- "#fdfdf2" 
+body_text <- "black"
+procedure_colors <- list(
+  "Medical" = "#9db6c9",
+  "Medical (Surgical)" = "#9db6c9",
+  "Mifepristone Misoprostol" = "#9db6c9",
+  "Surgical" = "#029ba2",
+  "Suction Curettage"  = "#029ba2",
+  "Dilation Evacuation" = "#029ba2",
+  "surgical other" = "#029ba2")
+
+```
+
+```{r proc_labels_annotations}
+surg_def_lab <- paste(
+  "<span style = 'color:",procedure_colors$'Suction Curettage',";'>Surgical procedures</span>
+  <span style = 'color:",body_text,";'>including</span>
+  <span style = 'color:",procedure_colors$'Suction Curettage',";'>menstrual 
+  aspiraiton, suction curetttage, dilation and evacuation, and 'surgical other.'</span>")
+
+surg_def_lab <- paste(
+  "<span style = 'color:",body_text,";'>All</span>
+  <span style = 'color:",procedure_colors$'Suction Curettage',";'>surgical</span>
+  <span style = 'color:",body_text,";'>procedures including</span>
+  <span style = 'color:",procedure_colors$'Suction Curettage',";'>suction curettage</span>")
+
+# medical line label
+med_lab <- paste(
+  "<span style = 'color:",procedure_colors$Medical,";'>Medical Procedures</span>")
+
+# suction curettage label
+sc_lab <- paste(
+  "<span style = 'color:",procedure_colors$'Suction Curettage',";'>Suction curettage</span> 
+  <span style = 'color:",body_text,";'>only</span>")
+
+# all surgical label
+surg_lab <- paste(
+  "<span style = 'color:",procedure_colors$'Suction Curettage',";'>Surgical Procedures</span>")
+
+# non sc surgical types label
+non_sc_surg <- paste(
+  "<span style = 'color:",procedure_colors$'Suction Curettage',";'>Surgical</span>
+  <span style = 'color:",body_text,";'>procedures except</span>
+  <span style = 'color:",procedure_colors$'Suction Curettage',";'>suction curetttage,</span>
+  <span style = 'color:",body_text,";'>including</span>
+  <span style = 'color:",procedure_colors$'Suction Curettage',";'>dilation and 
+  evacuation, 'medical (surgical)', menstrual aspiration, and 'surgical other.'</span>")
+
+
+
+```
+
+```{r proc_titles_captions}
+pct_title <- paste(
+  "<span style = 'color:",procedure_colors$Medical,";'>Medical</span>
+  abortion procedures grew on average</span>
+  <span style = 'color:",procedure_colors$Medical,";'>",
+  paste(round(sum(med_cng$pct_cng, na.rm=T)/length(proc_tot$year),2),'%'),"</span>
+  annually from 2014 to 2021 and eclipsed</span>
+  <span style = 'color:",procedure_colors$Surgical,";'>surgical</span>
+  procedures, which declined on average</span>
+  <span style = 'color:",procedure_colors$Surgical,";'>",
+  paste(abs(round(sum(surg_cng$pct_cng, na.rm=T)/length(proc_tot$year),2)),"%"),
+  "</span>
+  annually, as the predominant abortion procedure in 2019. The rate for <span style 
+  = 'color:gray;'>all </span> abortions increased on average</span>
+  <span style = 'color:gray;'>",
+  round(sum(proc_tot$pct_cng, na.rm=T)/length(proc_tot$year),2),"%</span>
+  annually."
+)
+
+subtitle <- paste(
+  "<span style = 'color:",procedure_colors$Surgical,";'>Suction curettage</span><span style = 'color:",body_text,";'> can be identified as the most common</span><span style = 'color:",procedure_colors$Surgical,";'> surgical</span><span style = 'color:",body_text,";'> procedure until 2018 when Indiana consolidated all distinct</span><span style = 'color:",procedure_colors$Surgical,";'> surgical</span> procedures into one category.<br></span>")
+
+
+```
+
+```{r proc_plot}
+p2 <- ggplot()+
+  # 2014:2018 medical data
+  geom_line(data=proc_14_18 %>% 
+              filter(Procedure =="Mifepristone Misoprostol"),
+            aes(year, Count, group=Procedure),
+            size = 1.25, color=procedure_colors$Medical,show.legend=F)+
+  # 2014:2018 suction curettage data
+  geom_line(data=proc_14_18 %>% 
+              filter(Procedure =="Suction Curettage"),
+            aes(year, Count, group=Procedure),
+            size = .5, linetype = "solid", show.legend=F,
+            color=procedure_colors$Surgical)+
+  # 2014:2018 surgical non suction-curettage 
+  geom_line(data=proc_14_18_surg_consol %>% filter(Procedure=="Surgical"),
+            aes(year, Count, group=Procedure),
+            size = .5, linetype = "dashed", show.legend=F,
+            color=procedure_colors$Surgical)+
+  # medical line with data from 2019:2021
+  geom_line(data=proc_19_21 %>% filter(Procedure == "Medical"), 
+            aes(year, Count, group=Procedure),
+            size = 1.25, show.legend=F, color=procedure_colors$Medical)+
+  # surgical line with data from 2019:2021
+  geom_line(data=proc_19_21 %>% filter(Procedure == "Surgical"), 
+            aes(year, Count, group=Procedure),
+            color=procedure_colors$Surgical,
+            size = 1.25, show.legend=F, linetype = "solid")+
+  # line segment to connect medical lines from 2018:2019
+  geom_segment(aes(
+    x = 2018, xend = 2019,
+    y = rx_seg_1, yend = rx_seg_2),
+    show.legend=F, size = 1.25, color = procedure_colors$Medical)+
+  geom_segment(aes(
+    x = 2018, xend = 2019,
+    y = sg_seg_1, yend = sg_seg_2),
+    show.legend=F, size =1.25, color = procedure_colors$Surgical, linetype="solid")+
+  # line for total number of abortions over time
+  geom_line(data=proc_tot, 
+            aes(year, total, group = "year"),
+            size = .35, show.legend=F, linetype = "solid",
+            color= "gray")+
+  # dashed line for average number of abortions
+  # geom_line(data=proc_tot, 
+  #           aes(year, mean(total), group = "year"),
+  #           size = .35, show.legend=F, linetype = "dashed",
+  #           color= "gray")+
+  # 0 baseline on x axis
+  geom_segment(aes(x=2014, xend=2021,
+                   y = 0, yend=0),
+               size=.1, color="light gray")+
+  # horizontal grid lines 
+  geom_segment(aes(x=2014, xend=2021,
+                   y = 4000, yend=4000),
+               size=.15, color="gray 80", linetype = "dotted")+
+  geom_segment(aes(x=2014, xend=2021,
+                   y = 8000, yend=8000),
+               size=.15, color="gray 80", linetype = "dotted")+
+  scale_x_discrete(expand = expansion(add = 1.5))+
+  scale_x_continuous(breaks = c(2014,2015,2016,2017, 2018, 2019, 2020, 2021, 2022),
+                     limits = c(2014, 2022),
+                     labels = c("2014","2015","2016","2017", "2018", "2019",
+                                "2020", "2021", ""))+
+  scale_y_continuous(labels = scales::comma)+
+  # annotations ####
+# total label
+annotate("text_box", x=2021, y = proc_tot$total[proc_tot$year == "2021"],
+         label = "All Procedures", color = "gray", lineheight = 1,
+         width = unit(1.5, "inch"), hjust = 0, vjust = .5, box.color=panel_c, 
+         fill = panel_c, size = 4)+
+  # surgical label  
+  annotate("text_box", x=2021, y = pull(proc_19_21[proc_19_21$Procedure =="Surgical" & 
+                                                  proc_19_21$year=="2021" & proc_19_21$Count,3]),
+           label = surg_lab, color = panel_c, lineheight = 1,
+           width = unit(1.5, "inch"), hjust = 0, vjust = .5, box.color=panel_c, 
+           fill = panel_c, size = 4)+
+  # medical label  
+  annotate("text_box", x=2021, y = pull(proc_19_21[proc_19_21$Procedure =="Medical" & 
+                                                  proc_19_21$year=="2021" & proc_19_21$Count,3]),
+           label = med_lab, color = panel_c, lineheight = 1,
+           width = unit(1.5, "inch"), hjust = 0, vjust = .5, box.color=panel_c, 
+           fill = panel_c, size = 4)+
+  # suction curettage label
+  annotate("text_box", x=2018, 
+           y = pull(proc_14_18[proc_14_18$Procedure =="Suction Curettage"& 
+                                 proc_14_18$year=="2018" &proc_14_18$Count,3]),
+           label = sc_lab, color = panel_c, lineheight = 1,
+           hjust =1, vjust = 1.25, box.color=panel_c, 
+           fill = panel_c, size = 2.5, halign = 1)+
+  # surgical definition post 2018 label
+  annotate("text_box", x=2018, 
+           y = pull(proc_14_18[proc_14_18$Procedure =="Suction Curettage"& 
+                                 proc_14_18$year=="2018" &proc_14_18$Count,3]),
+           label = surg_def_lab, color = panel_c, lineheight = 1.2,
+           hjust =0, vjust = -.25, box.color=panel_c, 
+           fill = panel_c, size = 2.5, halign = 0,width = unit(1.5, "inch"))+
+  # vertical line denoting end of data with surgical subtypes
+  geom_segment(aes(x=2018,xend=2018, 
+                   y = 700+pull(proc_14_18[proc_14_18$Procedure =="Suction Curettage"& 
+                                             proc_14_18$year=="2018" & proc_14_18$Count,3]),
+                   yend=-700+pull(proc_14_18[proc_14_18$Procedure =="Suction Curettage"& 
+                                               proc_14_18$year=="2018" & proc_14_18$Count,3])),
+               color="dark gray", linetype = "solid",
+               size = .25, show.legend = F)+
+  # # non sc pre 2018 label
+  annotate("text_box", x=2018, 
+           y = pull(proc_14_18_surg_consol[proc_14_18_surg_consol$year == "2018" &
+                                             proc_14_18_surg_consol$Procedure == "Surgical" & 
+                                             proc_14_18_surg_consol$Count,3]),
+           label = non_sc_surg, color = panel_c, lineheight = 1,
+           width = unit(3.5, "inch"), hjust =1, vjust = -.05, box.color=panel_c, 
+           fill = panel_c, size = 2.5, halign = 1)+
+  #  theme adjustments ####  
+t_theme()+
+  theme(
+    #axis.line.y = element_line(color="light gray", size = .05),
+    panel.grid.major.y = element_blank(),
+      #panel.grid.major.y = element_blank(),
+      panel.grid.major.x = element_blank(),
+    axis.line = element_blank(),
+    axis.ticks = element_blank(),
+    axis.title.x = element_blank(),
+    axis.text = element_text(size = 7,
+                             color = "gray 55"),
+    axis.title.y = element_text(color = "gray55",
+                                  size = rel(.6), vjust = .6),
+    panel.background = element_rect(fill=panel_c),
+    plot.background = element_rect(fill = panel_c, 
+                                   color = panel_c,
+                                   size = .35),
+    
+    plot.title.position = "plot",
+    plot.margin = unit(c(.5, .5, .5, .5), "cm"),
+    # plot.caption = element_textbox_simple(family = "sans", size = 7,
+    #                                       color = "gray40", halign = 1,
+    #                                       lineheight = 1.2),
+    legend.position = "none"
+  )+
+  labs(
+    title = pct_title,
+    subtitle  = subtitle,
+    caption = "<br>**Abortion Data:** 'www.in.gov/health/vital-records/vital-statistics/terminated-pregnancy-reports/'<br>**Graphic:** Ted Schurter 2023")
+
+```
+
+
+```{r proc_display_plot}
+p2
+
+```
+
+Abortion provider locations and volume  {data-navmenu="Maps"}
+=====================================  
+
+
+
+```{r import data, calculate and correct lat, lon}
+# import provider location data  ####
+prov <- read_csv("Exported_Data/prov.csv")
+
+# 
+
+# total count of all abortions 2014:2021 ####
+tot_count <- sum(prov$count_by_yr)
+
+# calculate percent of all abortions at each facility 2014:2021 ####
+prov <- prov %>% 
+  group_by(facility) %>% 
+  mutate(tot_fac_pct = round(100*(sum(count_by_yr)/tot_count),2)) 
+
+
+# create dataframe of distinct facilities and their lat and lon; first arrange prov 
+# dataframe in descending order to get most recent year address data was available
+# for that facility. If it was pre 2018, the address was provided in the report.
+# After 2017, only the county was provided so addresses will reflect what is returned
+# when geolocating modern facility name today.
+pd <- prov %>% arrange(desc(year)) %>% distinct(facility, .keep_all = T)
+
+# if address provided, use it for geocoding, else generate address by combining
+# facility name, county and state and geocode that instead.
+pd[,(ncol(prov)+1):(ncol(prov)+2)] <- ggmap::geocode(
+  location = 
+    if_else(is.na(pd$address) == "FALSE", 
+            pd$address,
+            str_c(pd$facility, paste0(pd$county, " County, IN"), 
+                  sep=", ")), output = "latlon")
+
+# returns warning that "Sydney $ Louis..." returned address from Australia.
+# To fix that, pull address from last known year for Sidney & Lois Eskenazi Hospital
+sl <- prov$address[prov$facility == "Sidney & Lois Eskenazi Hospital" & prov$year == 2017]
+
+#create object with lon and lat of correct address for hospital
+sl_ll <- ggmap::geocode(location = sl, output = "latlon")
+
+# add correct lon and lat to Sidney $ Lois...
+pd$lon[pd$facility == "Sidney & Lois Eskenazi Hospital"] <- sl_ll[1]
+pd$lat[pd$facility == "Sidney & Lois Eskenazi Hospital"] <- sl_ll[2]
+
+# clean up
+rm(sl, sl_ll)
+
+# remove unneeded pd columns before join
+pd <- pd %>% select(facility, lon, lat)
+
+prov <- left_join(prov, pd, by = "facility")
+
+prov$lat[prov$county == "Hamilton"] <- 39.965154
+
+# convert lon and lat into numeric, not list
+prov$lon <- as.numeric(prov$lon) 
+prov$lat <- as.numeric(prov$lat) 
+
+```
+
+```{r import county lines, convert to sf dataframe}
+# import county geometry for mapping
+options(tigris_use_cache=TRUE)  # cache data
+
+# import geometry for counties and GEOID
+counties <- counties("IN", cb = T) %>% select(NAME, geometry)
+#colnames(counties)  <- c("Name", "geometry")
+
+# join county geometry to prov dataframe
+prov <- left_join(prov, counties, by= c("county" ="NAME"))
+
+prov <- st_sf(prov)
+pts <- prov
+```
+
+
+```{r create breakout county shapes and road details}
+# creating combination state map w/insets of Marion, Lake and St. Joseph Counties ####
+#
+# get primary and secondary roads from TIGRIS
+IN_roads <- primary_secondary_roads(state = "IN")
+
+# get primary roads from TIGRIS
+roads <- primary_roads()
+
+# get polygon for Marion, Lake and St. Joseph Counties 
+marion_poly <- getbb(place_name = "Marion County, IN",
+                     format_out = "sf_polygon") 
+
+lake_poly <- getbb(place_name = "Lake County, IN",
+                     format_out = "sf_polygon")
+
+sj_poly <- getbb(place_name = "St. Joseph County, IN",
+                   format_out = "sf_polygon")
+
+
+
+# roads not compatible with county_polys or prov dataframe
+
+# convert the roads to the right CRS ####
+iroads <- st_transform(IN_roads, crs = 4326)
+iroads2 <- st_transform(roads, crs = 4326)
+
+# using mapshaper package, clip the roads to the boundaries of Marion County
+mclip <- ms_clip(target = iroads,
+                             clip = marion_poly, remove_slivers = T)
+
+mclip2 <- ms_clip(target = iroads2,
+                              clip = marion_poly, remove_slivers = T)
+
+
+# clip boundaries for Lake County
+lclip <- ms_clip(target = iroads,
+                             clip = lake_poly, remove_slivers = T)
+
+lclip2 <- ms_clip(target = iroads2,
+                              clip = lake_poly, remove_slivers = T)
+
+# clip boundaries for St. Joseph County
+sjclip <- ms_clip(target = iroads,
+                             clip = sj_poly, remove_slivers = T)
+
+sjclip2 <- ms_clip(target = iroads2,
+                              clip = sj_poly, remove_slivers = T)
+
+# colors for facilities (fac) and hospitals (hosp) markers and panel
+fac <- "#1a9641"
+hosp <- "#fdae61"
+panel_c <- "#fdfdf2"
+```
+
+```{r create inset maps for counties, state map}
+#create inset map for Marion county ####
+
+marion <- ggplot()+
+  # add primary and secondary roads in gray
+  geom_sf(data = mclip,
+          color = "lightgray", alpha = .3)+
+  # add primary interstates as orange/yellow
+  geom_sf(data = mclip2,
+          color = "#f6cf65", alpha = .3)+
+  # add points
+  geom_point(data=prov %>% distinct(facility, .keep_all = T) %>% 
+               filter(!str_detect(facility, "Hospital") == TRUE,
+                      county == "Marion"),
+             aes(x=lon, y=lat,
+                 size = tot_fac_pct),
+             color = fac,
+             fill = fac,
+             shape = 21,
+             alpha = .3,
+             show.legend = F)+
+  geom_point(data=prov %>% distinct(facility, .keep_all = T) %>% 
+               filter(str_detect(facility, "Hospital") == TRUE,
+                      county == "Marion"),
+             aes(x=lon, y=lat,
+                 size = tot_fac_pct),
+             color = "white",
+             fill = hosp,
+             shape = 21,
+             alpha = 1,
+             show.legend = F)+
+  # add boundary of Marion County
+  geom_sf(data= counties %>% filter(NAME == "Marion"), 
+          fill = NA,
+          color = "darkgray",
+          linewidth = .4)+
+  theme_classic()+
+  theme(
+    plot.background = element_rect(fill=panel_c, color = panel_c),
+    panel.background = element_rect(fill=panel_c, color = panel_c),
+    plot.title = element_textbox_simple(family = "serif",
+                                        size = 14, lineheight = 1, color = "gray30",
+                                        margin = unit(c(0, 0, 8, 0), "pt")),
+    plot.subtitle = element_textbox_simple(family = "sans", size = 11,
+                                           color = "gray40", 
+                                           margin = unit(c(6, 0, 0, 0), "pt")),
+    plot.caption = #element_markdown(color = "gray40", size = 7),
+      element_textbox_simple(family = "sans", size = 7,
+                             color = "gray40",
+                             halign = 1,
+                             lineheight = 1.2
+      ),
+    plot.title.position = "panel",
+    plot.margin = margin(0, .5, 0, .5, unit = "cm"),
+    axis.text = element_blank(),
+    axis.title = element_blank(),
+    axis.line = element_blank(),
+    axis.ticks = element_blank()
+  )
+
+# convert plot into grob
+marion_grob <- ggplotGrob(marion)
+
+# create inset map for Lake County ####
+lake <- ggplot()+
+  # add primary and secondary roads in gray
+  geom_sf(data = lclip,
+          color = "lightgray", alpha = .3)+
+  # add primary interstates as orange/yellow
+  geom_sf(data = lclip2,
+          color = "#f6cf65", alpha = .3)+
+  # add points
+  geom_point(data=prov %>% distinct(facility, .keep_all = T) %>% 
+               filter(!str_detect(facility, "Hospital") == TRUE,
+                      county == "Lake"),
+             aes(x=lon, y=lat,
+                 size = tot_fac_pct),
+             color = fac,
+             fill = fac,
+             shape = 21,
+             alpha = .3,
+             show.legend = F)+
+  geom_point(data=prov %>% distinct(facility, .keep_all = T) %>% 
+               filter(str_detect(facility, "Hospital") == TRUE,
+                      county == "Lake"),
+             aes(x=lon, y=lat,
+                 size = tot_fac_pct),
+             color = "white",
+             fill = hosp,
+             shape = 21,
+             alpha = 1,
+             show.legend = F)+
+  # add boundary of Lake County
+  geom_sf(data= counties %>% filter(NAME == "Lake"), 
+          fill = NA,
+          color = "darkgray",
+          linewidth = .4)+
+  theme_classic()+
+  theme(
+    plot.background = element_rect(fill=panel_c, color = panel_c),
+    panel.background = element_rect(fill=panel_c, color = panel_c),
+    plot.title = element_textbox_simple(family = "serif",
+                                        size = 14, lineheight = 1, color = "gray30",
+                                        margin = unit(c(0, 0, 8, 0), "pt")),
+    plot.subtitle = element_textbox_simple(family = "sans", size = 11,
+                                           color = "gray40", 
+                                           margin = unit(c(6, 0, 0, 0), "pt")),
+    plot.caption = #element_markdown(color = "gray40", size = 7),
+      element_textbox_simple(family = "sans", size = 7,
+                             color = "gray40",
+                             halign = 1,
+                             lineheight = 1.2
+      ),
+    plot.title.position = "panel",
+    plot.margin = margin(0, .5, 0, .5, unit = "cm"),
+    axis.text = element_blank(),
+    axis.title = element_blank(),
+    axis.line = element_blank(),
+    axis.ticks = element_blank()
+  )
+
+# convert plot into grob
+lake_grob <- ggplotGrob(lake)
+
+# create inset for St. Joseph county ####
+
+sj <- ggplot()+
+  # add primary and secondary roads in gray
+  geom_sf(data = sjclip,
+          color = "lightgray", alpha = .3)+
+  # add primary interstates as orange/yellow
+  geom_sf(data = sjclip2,
+          color = "#f6cf65", alpha = .3)+
+  # add points
+  geom_point(data=prov %>% distinct(facility, .keep_all = T) %>% 
+               filter(!str_detect(facility, "Hospital") == TRUE,
+                      county == "St. Joseph"),
+             aes(x=lon, y=lat,
+                 size = tot_fac_pct),
+             color = fac,
+             fill = fac,
+             shape = 21,
+             alpha = .3,
+             show.legend = F)+
+  geom_point(data=prov %>% distinct(facility, .keep_all = T) %>% 
+               filter(str_detect(facility, "Hospital") == TRUE,
+                      county == "St. Joseph"),
+             aes(x=lon, y=lat,
+                 size = tot_fac_pct),
+             color = "white",
+             fill = hosp,
+             shape = 21,
+             alpha = 1,
+             show.legend = F)+
+  # add boundary of St Joseph County
+  geom_sf(data= counties %>% filter(NAME == "St. Joseph"), 
+          fill = NA,
+          color = "darkgray",
+          linewidth = .4)+
+  theme_classic()+
+  theme(
+    plot.background = element_rect(fill=panel_c, color = panel_c),
+    panel.background = element_rect(fill=panel_c, color = panel_c),
+    plot.title = element_markdown(color = "gray50", lineheight = 0),
+    axis.text = element_blank(),
+    axis.title = element_blank(),
+    axis.line = element_blank(),
+    axis.ticks = element_blank()
+  )
+
+# convert plot into grob
+sj_grob <- ggplotGrob(sj)
+
+# create grob of state map ####
+
+state <- ggplot()+
+  # layer of all states
+  geom_sf(data= counties, 
+          fill = "white",
+          color = "gray80",
+          linewidth = .3)+
+  # add border for counties with at least one non-hospital facility
+  geom_sf(data= prov %>% distinct(facility, .keep_all = T), #%>% 
+          # filter(!str_detect(facility, "Hospital") == TRUE),
+          fill = NA, color = "darkgray",
+          linewidth = .6)+
+  geom_point(data=prov %>% arrange(desc(year)) %>% distinct(facility, .keep_all = T) %>% 
+               filter(str_detect(facility, "Hospital") == FALSE &
+                        year >=2020),
+             aes(x=lon, y=lat,
+                 size = tot_fac_pct),
+             color = fac,
+             fill =  fac,
+             #shape = 1,
+             alpha = .3,
+             show.legend = F)+
+  # add points for hospitals
+  geom_point(data=prov %>% arrange(desc(year)) %>% distinct(facility, .keep_all = T) %>% 
+               filter(str_detect(facility, "Hospital") == FALSE &
+                        year <=2020),
+             aes(x=lon, y=lat,
+                 size = tot_fac_pct),
+             color = "white",
+             fill = hosp,
+             shape = 21,
+             alpha = .5,
+             show.legend = F)+
+  # dummy layer to erase county borders for label clarity
+  geom_label_repel(data=prov %>% distinct(county, .keep_all = T) %>% 
+                     filter(county != "Lake", county != "Marion", county != "St. Joseph"),
+                   aes(lon, lat, label = paste(county, "County", sep = "\n ")),
+                   nudge_y = .15, nudge_x = -.4,
+                   color = "white", segment.color = NA,
+                   size = 3, fontface = "plain", lineheight = .8,
+                   direction = "x"
+  )+
+  geom_text_repel(data=prov %>% distinct(county, .keep_all = T) %>% 
+                    filter(county != "Lake", county != "Marion", county != "St. Joseph"),
+                  aes(lon, lat, label = paste(county, "County", sep = "\n ")),
+                  nudge_y = .15, nudge_x = -.4,
+                  #force = 2,
+                  color = "gray30", segment.color = "gray60",
+                  size = 3, fontface = "plain", lineheight = .8,
+                  direction = "x",
+                  segment.size      = 0.2,
+  )+
+  theme(
+    plot.background = element_rect(fill=panel_c, color = panel_c),
+    panel.background = element_rect(fill=panel_c, color = panel_c),
+    plot.title = element_textbox_simple(family = "serif",
+                                        size = 17, lineheight = 1, color = "gray30",
+                                        margin = unit(c(0, 0, 8, 0), "pt")),
+    plot.subtitle = element_textbox_simple(family = "sans", size = 11,
+                                           color = "gray40", 
+                                           margin = unit(c(6, 0, 0, 0), "pt")),
+    plot.caption = #element_markdown(color = "gray40", size = 7),
+      element_textbox_simple(family = "sans", size = 7,
+                             color = "gray40",
+                             halign = 1,
+                             lineheight = 1.2
+      ),
+    plot.title.position = "panel",
+    plot.margin = margin(0, .5, 0, .5, unit = "cm"),
+    axis.text = element_blank(),
+    axis.title = element_blank(),
+    axis.line = element_blank(),
+    axis.ticks = element_blank()
+  )+
+  theme_void()
+
+
+
+state_grob <- ggplotGrob(state)
+```
+
+```{r create legend circle, unified map}
+# create combination state and inset map ####
+
+# create circle for key legend. x and y reference location placement
+circle <- data.frame(x0 = .45:.1,    
+                      y0 = .06:.06,
+                      r = .016:.016)
+
+
+# set blank canvas
+map_inset <- ggplot() +
+  coord_equal(xlim = c(0, 1), ylim = c(0, 1), expand = FALSE)
+
+im <- 
+  map_inset +
+  # state map inset
+  annotation_custom(state_grob,
+                    xmin = 0, xmax = 0.6, ymin = 0,
+                    ymax = 1)+
+  # # Marion County inset
+  annotation_custom(marion_grob,
+                    xmin = 0.53, xmax = 1,
+                    ymin = 0.14, ymax = .285)+
+  # # line pointing to marion county inset
+  geom_segment(aes(x = .4, xend = .67,
+                  y = .46, yend = .21),
+              color  = "gray60",
+              linewidth = .2)+
+  # # Marion Co. inset label 
+  annotate("text_box", x=.66, y=.31,
+           label ="<span style = 'font-size:8pt;color:gray20'>Marion County:  </span><span
+           style = 'font-size:8pt;color:gray60'>  Indianapolis</span>",
+           width = unit(2, "inch"), hjust = 0, vjust = .5, box.color="white",
+           fill = panel_c, size = 2.5)+
+  # Lake County inset
+  annotation_custom(lake_grob,
+                    xmin = 0.66, xmax = .85, 
+                    ymin = .145, ymax = .775)+
+  # line pointing to Lake county inset
+  geom_segment(aes(x = .19, xend = .67,
+                  y = .80, yend = .5),
+              color  = "gray60",
+              linewidth = .2)+
+  # Lake Co. inset label
+  annotate("text_box", x=.66, y=.61,
+           label ="<span style = 'font-size:8pt;color:gray20'>Lake County: </span><span
+           style = 'font-size:8pt;color:gray60'> Gary</span>",
+           width = unit(1.4, "inch"), hjust = 0, vjust = .5, box.color="white",
+           fill = panel_c, size = 2.5)+
+  # St. Joseph County inset
+  annotation_custom(sj_grob,
+                    xmin = 0.55, xmax = 1, 
+                    ymin = .62, ymax = .8)+
+  # # line pointing to St. Joseph county inset
+  geom_segment(aes(x = .38, xend = .67,
+                   y = .87, yend = .75),
+               color  = "gray60",
+               linewidth = .2)+
+  # # St. Joseph inset label
+  annotate("text_box", x=.66, y=.815,
+           label ="<span style = 'font-size:8pt;color:gray20'>St. Joseph County: </span><span
+           style = 'font-size:8pt;color:gray60'> South Bend</span>",
+           width = unit(1.84, "inch"), hjust = 0, vjust = .5, box.color="white",
+           fill = panel_c, size = 2.5)+
+  # inset text block
+  annotate("text_box", x=.66, y=.89,
+           label ="The 3 counties with multiple abortion facilities are home to 
+           large metropolitan populations",
+           color = "gray40", lineheight = 1,
+           width = unit(1.75, "inch"), hjust = 0, vjust = .5, box.color="white", 
+           fill = panel_c, size = 3)+
+  # create legend block
+  annotate("text_box", x=.47, y=.06,
+           label ="Size represents percent of all abortions.",
+           color = "gray40", lineheight = 1,
+           width = unit(1, "inch"), hjust = 0, vjust = .5, box.color="white", 
+           fill = panel_c, size = 3)+
+  geom_circle(data = circle, aes(x0 = x0, y0 = y0, r = r, col = r),
+              color = "gray40",
+              show.legend = F)+
+  theme_void()+
+  theme(
+    plot.background = element_rect(fill=panel_c, color = panel_c),
+    plot.title = element_textbox_simple(family = "serif",
+                                        size = 14, lineheight = 1, color = "gray30"),
+    plot.subtitle = element_textbox_simple(family = "sans", size = 11,
+                                           color = "gray40"),
+    plot.caption = element_textbox_simple(family = "sans", size = 7,
+                                          color = "gray40", halign = 1,
+                                          lineheight = 1.2),
+    plot.title.position = "panel",
+    plot.margin = margin(.5, .5, .5, .5, unit = "cm")
+  )+
+  labs(title = paste("Abortions were provided in 7 of Indiana's 92 counties from 2014 to 2021. 
+  Nearly all, <span style = 'color:",fac,";'>99%</span>, 
+  occured in a <span style = 'color:",fac,";'>clinic</span>; less than 
+  <span style = 'color:",hosp,";'>1%</span> occured in a <span style = 
+  'color:",hosp,";'>hospital</span>."),
+       caption = "<br>**Data:** 'www.in.gov/health/vital-records/vital-statistics/terminated-pregnancy-reports'
+  <br>**Graphic:** Ted Schurter 2023"
+  )
+
+
+```
+
+```{r prov loc map,  fig.height = 7 }
+im
+```
+
+
+
+Abortions by race {data-navmenu="Charts"}
+===================================== 
+
+
 
 ```{r include = F}
 
@@ -1339,6 +1819,10 @@ colnames(race_col) <- c("race", "color")
 both_pop %>% 
   mutate(race_pct = 10*pct_race) %>% 
   ggplot()+
+  t_theme()+
+  # geom_segment(aes(x = min(race_pct), xend = max(race_pct),
+  #                  y = 50, yend = 50),
+  #              color  = "gray70", linewidth = .2, linetype = "dotted")+  
   geom_point(
     aes(10*pct_race, cba_pct, color = race, size = pct_all),
     show.legend=F)+
@@ -1348,7 +1832,7 @@ both_pop %>%
              size = 3, shape = 3, color = "dark gray", show.legend = F)+
   scale_color_manual(values = race_colors)+
   scale_size_continuous(range = 3.25*c(1,6))+
-  theme_minimal()+
+  #t_theme()+
   scale_y_continuous(name = "Percent of <br>population of <br>childbearing age",
                      limits = c(48,67),
                      breaks = c(40,50, 60, 70),
@@ -1363,30 +1847,31 @@ both_pop %>%
                      #expand = expansion(mult = c(0.02, 0.02))
   )+
   theme(
-    plot.background  = element_rect(color = "black", fill  = panel_c, size = .35),
+     panel.grid.major.y = element_line(color = "gray80", size = .25, linetype = "dotted"),
+      #panel.grid.major.y = element_blank(),
+    panel.grid.major.x = element_blank(),
+    axis.line = element_line(color = "gray80", size = .25),
+    plot.background  = element_rect(color = panel_c, fill  = panel_c, size = .35),
     panel.background = element_rect(color = NA, fill = panel_c),
     axis.title.x  = element_markdown(size = 9, color = "dark gray", family = "sans",
                                      hjust = 0),
     axis.title.y = element_markdown(size = 9, color = "dark gray", family = "sans",
                                     angle = 0, hjust = 0),
     axis.text =  element_markdown(size = 9, color = "dark gray"),
-    plot.title = element_textbox_simple(
-      size = 18, lineheight = 1, family = "serif", padding = margin(0, 0, 1, 0)),
-    plot.subtitle = element_textbox_simple(
-      size = 11, lineheight = 1, family = "sans", padding = margin(0, 0, 1, 0)),
+    # plot.title = element_textbox_simple(
+    #   size = 18, lineheight = 1, family = "serif", padding = margin(0, 0, 1, 0)),
+    # plot.subtitle = element_textbox_simple(
+    #   size = 11, lineheight = 1, family = "sans", padding = margin(0, 0, 1, 0)),
     plot.title.position = "plot",
-    plot.margin = unit(c(.5, .5, .5, .5), "cm"),
-    plot.caption = element_markdown(color = "gray", hjust = 1),
-    panel.grid = element_line(colour = "#f6f6f5"))+
+    plot.margin = unit(c(.5, .5, .5, .5), "cm"))+
   labs(
-    title = paste0(
-      "The <span style = 'color:",race_colors$Black,";'>Black</span> abortion rate is double the second highest race and three times higher than the state average."),
-    # paste0("The abortion rate for women of childbearing age varies by race. From 2014 to 2021 the average rate was ",
-    #                both_pop %>% summarise(round(sum(count)/sum(total),4))*1000," per 1,000."),
     subtitle = paste0(
-      "<br>The abortion rate for women of childbearing age varies by race. From 2014 to 2021 the average rate for all races was ",
-      both_pop %>% summarise(round(sum(count)/sum(total),4))*1000," per 1,000. <br>"),
-    caption = "Abortion Data:in.gov/health/vital-records/vital-statistics/terminated-pregnancy-reports/<br>Population Data: US Census Bureau")+
+      "The <span style = 'color:",race_colors$Black,";'>Black</span> abortion rate is double the second highest race and three times higher than the state average."),
+    title = paste0(
+      "The abortion rate for women of childbearing age varies by race. From 2014 to 2021 the average rate for all races was ",
+      both_pop %>% summarise(round(sum(count)/sum(total),4))*1000," per 1,000."),
+    caption = "**Abortion Data:** 'www.in.gov/health/vital-records/vital-statistics/terminated-pregnancy-reports/'<br>**Population Data:** US Census Bureau<br>
+    **Graphic:** Ted Schurter 2023")+
   
   # annotations ####
 # annotation for white
@@ -1452,5 +1937,701 @@ annotate("text_box",
            width = unit(2.25, "inch"), hjust = -.03, vjust = 1.3, box.color=panel_c, 
            fill = panel_c) 
 ```
+
+
+
+
+Abortion provider type and count by year {data-navmenu="Charts"}
+===================================== 
+
+
+
+```{r include = F}
+
+knitr::opts_chunk$set(eval = T,
+                      echo = F,
+                      include = T,
+                      warning = F,
+                      dev = "png",
+                      dpi = 200,
+                      cache = FALSE,
+                      fig.align  = "left",
+                      fig.width  =  11,
+                      fig.height =  5.75,
+                      #fig.asp = 1.83,
+                      out.width  = "100%",
+                      out.height = "100%"
+                      )
+
+```
+
+
+```{r import provider data}
+# import data
+prov <- read_csv("Exported_Data/prov.csv")
+```
+
+```{r generate totals, calculate percents}
+# calculate number of facility types by year ####
+
+t1 <- prov %>% 
+  group_by(year) %>% 
+  summarise(tot = n_distinct(facility)) 
+
+t2 <- prov %>% 
+  ungroup() %>% 
+  mutate(type = if_else(str_detect(facility, "Hospital") == TRUE, "H", "F")) %>% 
+  filter(type == "F") %>% 
+  group_by(year) %>% 
+  summarise(ftot = n_distinct(facility))
+
+t3 <- prov %>% 
+  ungroup() %>% 
+  mutate(type = if_else(str_detect(facility, "Hospital") == TRUE, "H", "F")) %>% 
+  filter(type == "H") %>% 
+  group_by(year) %>% 
+  summarise(htot = n_distinct(facility))  
+
+
+t4 <- left_join(t1, t2, by = "year")
+
+t5 <- left_join(t3, t4, by = "year")
+
+facility <- t5 %>% pivot_longer(
+  cols = c(2:4), names_to = "type", values_to = "count")
+
+facility$type <- factor(facility$type, levels = c("tot", "ftot", "htot"),
+                        ordered = T)
+
+# totals for captions ####
+# total of all abortions 
+tot <- facility %>%   
+  filter(type == "tot") %>% #nrow
+  summarise(sum(count))
+
+# total of all abortions at non-hospital facilities
+f_tot <- facility %>% 
+  filter(type == "ftot") %>% 
+  summarise(sum(count))
+
+# total of all abortions at hospital facilities
+h_tot <- facility %>% 
+  filter(type == "htot") %>% 
+  summarise(sum(count))
+
+# percent of all abortions at non-hospital facilities
+fpct <- round(f_tot/tot*100)  
+# percent of all abortions at hospital facilities
+hpct <- round(h_tot/tot*100)
+
+# number of distinct hospitals
+hosp_dist_tot <- prov %>% filter(str_detect(facility, "Hospital") == TRUE) %>% 
+  distinct(facility, .keep_all = T) %>% nrow()
+
+# total number of abortions
+tot_ab <-  prov %>% ungroup() %>%  summarise(sum(count_by_yr))
+
+# number of hospital abortions
+hsp_ab <- prov %>% ungroup() %>% filter(str_detect(facility, "Hospital") == TRUE) %>% 
+  summarise(sum(count_by_yr))
+
+# percent of hospital abortions
+hsp_ab_pct <- round(100*hsp_ab/tot_ab,1)
+
+# add columns to prov dataframe:
+# pct_by_yr: percent of all abortions at given location per year
+# type = type of facility: hospital or clinic
+# pct_type = percent of abortions that occurred at the given facility type; by year
+# pct_fac = percent of facilities that are given type; by year
+# tot_pct = total percent the abortions at x facility are of all abortions
+
+prov <- prov %>% group_by(year) %>% 
+  mutate(pct_by_yr = 100*(count_by_yr/sum(count_by_yr)),
+         type = if_else(
+           str_detect(facility, "Hospital") == TRUE,
+           "Hospital", "Facility"
+         )) %>%  
+  group_by(year, type) %>%
+  mutate(pct_type = sum(pct_by_yr),
+         # to avoid total > 100 due to rounding, cap percent at 100
+         pct_type = if_else(
+           pct_type >=100, 100, pct_type)) %>%
+  add_count(type) %>%
+  group_by(year) %>%
+  mutate(pct_fac = 100*(n/n_distinct(facility))) %>% 
+  ungroup() %>% 
+  group_by(facility, year) %>% 
+  mutate(tot_pct = round(count_by_yr/tot_ab*100,2)) 
+
+
+
+# clean up 
+rm(t1, t2, t3, t4, t5)
+```
+
+
+```{r add colors, labels and captions}
+# colors ####
+fac <- "#1a9641"
+hosp <- "#fdae61"
+tot_c <- "gray65"
+panel_c <- "#fdfdf2"
+
+# labels ####
+
+type_lab <- c(ftot = "Facility",
+              htot = "Hospital",
+              tot = "Total")
+
+# clinic colors - Marion Co. in color, everything else gray
+mc_fac_lab <- c(
+  "Affiliated Women's Services, Inc."            = "#a6cee3",
+  "Clinic for Women"                             = "#33a02c",
+  "The Women's Med Center of Indianapolis"       = "#b2df8a",
+  "Planned Parenthood of Indianapolis"           = "#1f78b4",
+  "Friendship Family Planning Clinic of Indiana" = "gray85",
+  "Planned Parenthood of Bloomington"            = "gray85",
+  "Planned Parenthood of Lafayette"              = "gray85",
+  "Planned Parenthood of Merrillville"           = "gray85",
+  "Women's Pavilion"                             = "gray85",
+  "Whole Women's Health of South Bend"           = "gray85")
+
+# hospital colors - Eskenazi in color, everything else gray
+
+hosp_list <- c(
+  "Indiana University Health University Hospital"  = "gray85", 
+  "Sidney & Lois Eskenazi Hospital"                = "#fdae61",     
+  "Indiana University Health North Hospital"       = "gray85",    
+  "Indiana University Health Methodist Hospital"   = "gray85", 
+  "Community Hospital North Surgery Center"        = "gray85",      
+  "Indiana University Riley Hospital"              = "gray85",           
+  "Deaconess Women's Hospital"                     = "gray85",
+  "Indiana University Health West Hospital"        = "gray85")
+
+
+# captions, titles and computed figures ####
+caption <- "<br>**Data:** 'www.in.gov/health/vital-records/vital-statistics/terminated-pregnancy-reports'<br>
+**Graphic:** Ted Schurter 2023"
+```
+
+
+```{r provider plot}
+
+ggplot()+
+  geom_col(data = facility %>% filter(year != 2021),
+           aes(year, count, fill = type,alpha = .5,),  
+           position = position_dodge(0.8), 
+           width = .65,  show.legend = F)+
+  scale_fill_manual(values = c("ftot" = fac,
+                               "htot" = hosp,
+                               "tot"  = tot_c))+
+  scale_x_continuous(breaks = c(2014:2021),
+                     labels = c("2014", "2015","2016", "2017", "2018", "2019", 
+                                "2020", "2021"))+
+  scale_y_continuous(limits = c(0, 13.5),
+                     breaks = seq(from = 0, to = 12, by = 4),
+                     labels = c("0", "4", "8", "12"),
+                     name = "Count\nof\nfacilities")+
+  geom_text(data = facility %>% filter(year == 2021),
+            aes(year, count, label = count, group = type),
+            position = position_dodge(width = .8),
+            hjust = .75, 
+            vjust = -1, size = 2.75, color = "gray30")+
+  geom_text(data = facility,
+            aes(year, count, label = count, group = type),
+            position = position_dodge(width = .8),
+            hjust = .65, 
+            vjust = 1.5, size = 2.4, color = "gray40")+
+  geom_col(data = facility %>% filter(year == 2021),
+           aes(year, count, fill = type),  
+           position = position_dodge(0.8), width = .65, show.legend = F)+
+  t_theme()+
+  theme(
+    panel.grid.major.y = element_line(color = "gray93"),
+    panel.background = element_rect(fill = panel_c),
+    plot.background = element_rect(fill = panel_c),
+    axis.title.x = element_blank(),
+    axis.title.y = element_text(vjust = .5),
+  )+
+  labs(title = 
+         paste0("The number of abortion<span style='color:",fac,"'> clinics</span> peaked in 2014
+  but the number of <span style='color:",hosp,"'>hospitals</span> and the <span style= 
+  'color:gray55'>total number</span> of facilities where abortions occurred peaked in 2021."),
+       caption = caption)
+```
+
+
+Clinic abortion count by year {data-navmenu="Charts"}
+===================================== 
+
+
+
+```{r facility count by year}
+ggplot()+
+  # scale lines
+  geom_segment(aes(x = 2014, xend = 2021,
+                   y = c(0,20, 40), yend = c(0, 20, 40)),
+               linetype = "dotted", color = "gray55")+
+  
+  # facilities NOT in Marion County - gray aesthetics
+  geom_line(data = prov %>% filter(!county == "Marion" & type == "Facility")%>% 
+              distinct(facility, .keep_all = T),  
+            aes(year, pct_by_yr, group = facility, color = facility), 
+            linewidth = .25, show.legend = F)+
+  geom_text(data = prov %>% filter(county != "Marion" & type == "Facility" & 
+                                     year == 2021) %>% distinct(facility, .keep_all = T), 
+            aes(2021.10, pct_by_yr, 
+                label = facility), color = "gray35",
+            size = 2.75, hjust = 0, vjust = .2, show.legend = F)+
+  # Women's Pavillion label closed in 2015;
+  geom_text(data = prov %>% filter(facility == "Women's Pavilion" & year == 2015) %>% 
+              distinct(facility, .keep_all = T), 
+            aes(2015.10, pct_by_yr, 
+                label = facility), color = "gray35",
+            size = 2.75, hjust = 0, vjust = .2, show.legend = F)+
+  # segment for Friendship Family Planning...
+  geom_segment(aes(x = 2014, xend = 2014.5,
+                   y = prov$pct_by_yr[prov$facility == "Friendship Family Planning Clinic of Indiana" & prov$year == 2014], 
+                   yend = prov$pct_by_yr[prov$facility == "Friendship Family Planning Clinic of Indiana" & prov$year == 2014]),
+               color = "gray85", size = .25)+
+  # label for Friendship Family Planning...
+  geom_text(data = prov %>% filter(facility == "Friendship Family Planning Clinic of Indiana") %>% distinct(facility, .keep_all = T), 
+            aes(2014.6, pct_by_yr+3, 
+                label = facility), color = "gray35",
+            size = 2.75, hjust = 0, vjust = .4, show.legend = F)+
+  # segment to label for Friendship Family Planning...
+  geom_segment(aes(x = 2014.6, xend = 2014.8,
+                   y = .35+prov$pct_by_yr[prov$facility == "Friendship Family Planning Clinic of Indiana" & prov$year == 2014], 
+                   yend = 1.75+prov$pct_by_yr[prov$facility == "Friendship Family Planning Clinic of Indiana" & prov$year == 2014]),
+               color = "gray35", size = .1)+
+  
+  # facilities in Marion County
+  geom_line(data = prov %>% filter(county == "Marion" & type == "Facility") %>% 
+              distinct(facility, .keep_all = T), 
+            aes(year, pct_by_yr, group = facility, color = facility), size = .75,
+            show.legend = F)+
+  geom_text(data = prov %>% filter(county == "Marion" & type == "Facility" & 
+                                     year == 2021) %>% distinct(facility, .keep_all = T), 
+            aes(2021.10, pct_by_yr, 
+                label = facility, color = facility),
+            size = 2.75, hjust = 0, vjust = .25, show.legend = F)+
+  # Affiliated Women's Services, Inc. open in 2014 only so doesn't appear in geom_line
+  geom_segment(aes(x = 2014, xend = 2014.5,
+                   y = prov$pct_by_yr[prov$facility == "Affiliated Women's Services, Inc." & prov$year == 2014], 
+                   yend = prov$pct_by_yr[prov$facility == "Affiliated Women's Services, Inc." & prov$year == 2014]),
+               color = "#a6cee3", size = 1, show.legend = F)+
+  # label for Affiliated Women's Services
+  geom_text(data = prov %>% filter(facility == "Affiliated Women's Services, Inc.") %>% distinct(facility, .keep_all = T), 
+            aes(2014.6, pct_by_yr+.5, 
+                label = facility, color = facility),
+            size = 2.75, hjust = 0, vjust = .20, show.legend = F)+
+  
+  scale_color_manual(values = mc_fac_lab)+
+  scale_x_continuous(limits = c(2014, 2023),
+                     breaks = seq(from = 2014, to = 2023, by = 1),
+                     labels = c("2014", "2015", "2016", "2017", "2018", "2019",
+                                "2020", "2021", "", ""))+
+  scale_y_continuous(labels = scales::percent_format(scale = 1))+
+  t_theme()+
+  theme(
+    panel.background = element_rect(fill = panel_c),
+    plot.background = element_rect(fill = panel_c),
+    panel.grid.major.y = element_blank(),#element_line(color = "gray90", linetype = "dashed"), 
+    axis.title.x = element_blank(),
+    axis.title.y = element_blank(), #element_text(size = rel(.65),vjust = 1.05),
+    legend.position = "none")+
+  labs(title = 
+         paste0("There were ", prov %>% ungroup() %>%  filter(type == "Facility") %>% 
+               distinct(facility) %>% nrow()," distinct abortion clinics operating
+               in ",prov %>% ungroup() %>%  filter(type == "Facility") %>% 
+               distinct(county) %>% nrow(), 
+               " Indiana counties between 2014 and 2021, ",
+               100*(prov %>% ungroup() %>%  filter(county == "Marion" & type == "Facility") %>% 
+               distinct(facility) %>% nrow())/(prov %>% ungroup() %>%  filter(type == "Facility") %>% 
+               distinct(facility) %>% nrow()) ,
+                "% were in Marion County and accounted for ",
+               round(prov %>% ungroup() %>%  filter(county == "Marion" & type == "Facility") %>% 
+               summarise(sum(tot_pct))),
+               "% of all abortions."),
+       subtitle = "The number of clinics reached nine in 2014 before shrinking to
+       six by 2016. A clinic opened in South Bend in 2019, raising the total to seven.",
+       caption = caption)
+```
+
+Hospital abortion count by year {data-navmenu="Charts"}
+===================================== 
+
+
+
+```{r hospital count by year}
+ggplot()+
+  # lines for scale - 0, .5, 1%
+  geom_segment(aes(x = 2014, xend = 2021,
+                   y = c(0, .5, 1), yend = c(0, .5, 1)),
+               linetype = "dotted", color = "gray55")+
+  
+  geom_line(data = prov %>% filter(facility != "Indiana University Health University Hospital" & 
+            type == "Hospital") %>% distinct(facility, .keep_all = T), 
+            aes(year, pct_by_yr, group = facility, color = facility), size = .75)+
+  # labels for Marion Co. hospitals w/out Eskenazi with 2021 data - labels align at right
+  geom_text(data = prov %>% ungroup() %>% arrange(desc(year)) %>% 
+              filter(county == "Marion", type == "Hospital" & count_by_yr > 2 & facility 
+                     != "Indiana University Health North Hospital" & facility != 	
+                       "Indiana University Health University Hospital" &
+                       facility != "Sidney & Lois Eskenazi Hospital") %>% distinct(facility, .keep_all = T),  
+            aes(year + .1, pct_by_yr, label = facility), color = "gray35",
+            size = 2.5, hjust = 0, vjust = .25)+
+  # label for Eskenazi Hospital
+  geom_text(data = prov %>% ungroup() %>% arrange(desc(year)) %>% 
+              filter(facility == "Sidney & Lois Eskenazi Hospital") %>% distinct(facility, .keep_all = T),  
+            aes(year + .1, pct_by_yr, label = facility, color = facility),
+            size = 2.5, hjust = 0, vjust = .25)+
+  # labels for non Marion Co. hospitals with 2021 data - labels align at right adjust up to avoid overlap
+  geom_text(data = prov %>% ungroup() %>% arrange(desc(year)) %>% 
+              filter(county != "Marion", type == "Hospital" & count_by_yr > 2 & facility 
+                     != "Indiana University Health North Hospital" & facility != 	
+                       "Indiana University Health University Hospital") %>% distinct(facility, .keep_all = T),  
+            aes(year + .1, pct_by_yr, label = facility), color = "gray35",
+            size = 2.5, hjust = 0, vjust = -1.85)+
+  # label for IU Health North
+  geom_text(data = prov %>% ungroup() %>% arrange(desc(year)) %>% 
+              filter(facility == "Indiana University Health North Hospital" & 
+              year == 2018) %>% distinct(facility, .keep_all = T),  
+            aes(year + .1, pct_by_yr, label = facility), color = "gray35",
+            size = 2.5, hjust = 1.2, vjust = -.8)+
+  # add line and points and labels for IU Health University Hosp two locations
+  # IUHU hosp 2014-15 line
+  geom_line(data = prov %>% filter(facility == "Indiana University Health University Hospital" 
+            & year %in% 2014:2015), 
+            aes(year, pct_by_yr, group = facility, color = facility), size = .75)+
+  # IUHU hosp 2020-21 line 
+  geom_line(data = prov %>% filter(facility == "Indiana University Health University Hospital" 
+                                   & year %in% 2020:2021), 
+            aes(year, pct_by_yr, group = facility, color = facility), size = .75)+
+  geom_text(data = prov %>% ungroup() %>% arrange(desc(year)) %>% 
+              filter(facility == "Indiana University Health University Hospital") %>% 
+              distinct(facility, .keep_all = T),  
+            aes(year + .1, pct_by_yr, label = facility), color = "gray35",
+            size = 2.5, hjust = 0, vjust = -.45)+
+  geom_text(data = prov %>% ungroup() %>% arrange(desc(year)) %>% 
+              filter(facility == "Indiana University Health University Hospital") %>% distinct(facility, .keep_all = T),  
+            aes(2014, pct_by_yr, label = "IU Health University Hospital"), color = "gray35",
+            size = 2.5, hjust = -.05, vjust = -2.5)+
+ 
+  # points for hospitals with only one abortion in a year
+  geom_point(data = prov %>% filter(count_by_yr == 1 & type == "Hospital") %>% 
+               distinct(facility, .keep_all = T), 
+             aes(year, pct_by_yr, group = facility), color = "#756bb1", size = 2)+
+  # label for Community Hosp. North Surgery Cntr
+  geom_text(data = prov %>% filter(facility == 
+                                     "Community Hospital North Surgery Center") %>% 
+              distinct(facility, .keep_all = T),  
+            aes(year + .60, pct_by_yr, label = "Community Hospital\nNorth Surgery Center"),
+            size = 2.5, hjust = -.5, vjust = -1.45, lineheight = 1, color = "gray35",)+
+  # line to label for Community Hosp. North Surgery Cntr
+  annotate("segment", x = 2018.0525, xend = 2018.95,
+           y = .025, yend = .12, color = "gray75", linewidth = .15)+
+  # label for Community Hosp. North Surgery Cntr
+  geom_text(data = prov %>% filter(facility == 
+                                     "Indiana University Health West Hospital") %>% 
+              distinct(facility, .keep_all = T),  
+            aes(year + .1, pct_by_yr, label = facility), color = "gray35",
+            size = 2.5, hjust = 0, vjust = .2)+
+  scale_x_continuous(limits = c(2014, 2023),
+                     breaks = seq(from = 2014, to = 2023, by = 1),
+                     labels = c("2014", "2015", "2016", "2017", "2018", "2019",
+                                "2020", "2021", "", ""))+
+  scale_y_continuous(labels = scales::percent_format(scale = 1),
+                     breaks = c(0, .5, 1),
+                     name = "")+
+  scale_color_manual(values = hosp_list)+
+  t_theme()+
+  theme(
+    panel.background = element_rect(fill = panel_c),
+    plot.background = element_rect(fill = panel_c),
+    panel.grid.major.y = element_blank(),
+    axis.title.x = element_blank(),
+    axis.title.y = element_blank(), 
+    legend.position = "none")+
+  labs(title = 
+         paste0("Abortions in hospitals comprise just ", 
+                round(100*prov %>% ungroup() %>% filter(str_detect(facility, "Hospital") == TRUE) %>% 
+                        summarise(sum(count_by_yr))/prov %>% ungroup() %>%  summarise(sum(count_by_yr)),1),
+                "% of all abortions. <span style='color:#fdae61;'>Sidney & Lois Eskenazi Hospital</span>
+             was one of ",
+                prov %>% ungroup() %>% filter(type == "Hospital") %>% distinct(facility) %>% 
+                  select(facility) %>% nrow(),"
+             that performed them from 2014 to 2021. It accounted for <span style='color:#fdae61;'>",
+                round(prov %>% ungroup() %>% filter(facility == "Sidney & Lois Eskenazi Hospital") %>% 
+                        summarise(sum(count_by_yr))/prov %>% ungroup() %>% filter(str_detect(facility, "Hospital") == TRUE) %>% 
+                        summarise(sum(count_by_yr))*100),
+                        "%</span> of hospital abortions but just <span style='color:#fdae61;'>",
+                round(prov %>% ungroup() %>% filter(facility == "Sidney & Lois Eskenazi Hospital") %>% 
+                        summarise(sum(count_by_yr))/tot_ab*100,2),
+            "%</span> of all and was the only facility that conducted 
+            them each year."),
+       
+       subtitle = paste0("There were <span style = 'color:#756bb1;'>",
+                         prov %>% ungroup() %>% filter(count_by_yr <= 1 & type == "Hospital") %>% distinct(facility) %>% 
+                           select(facility) %>% nrow(),"</span> 
+                         instances when hospitals performed a <span style = 'color:#756bb1;'>single</span> abortion in a year."),
+       caption = caption)
+```
+
+
+
+Abortion by age of mother and year {data-navmenu="Charts"}
+===================================== 
+
+
+
+```{r age colors, captions, titles}
+# titles, labels and captions ####
+
+ab_age$age <- factor(ab_age$age,
+                     levels = 
+                       c("9-13",  
+                         "10-14", 
+                         "12-14",
+                         "15-17",
+                         "< 16",
+                         "16-17",
+                         "18-19",
+                         "20-24",
+                         "25-29",
+                         "30-34",
+                         "35-39",
+                         "40-44",
+                         "45"),
+                     ordered = T)
+#
+title <- paste0("Women in their 20s accounted for ",
+                round(100*(ab_age %>% group_by(age) %>% filter(age == "20-24" | age == "25-29" ) %>% 
+                ungroup() %>%  summarise(sum(count)))/(ab_age %>% ungroup() %>% summarise(sum(count)))),
+                "% of all abortions from 2014 to 2021, while those between 20 and 34 years old made 
+                up ",
+                round(100*(ab_age %>% group_by(age) %>% filter(age == "20-24" | age == "25-29" | 
+                age == "30-34") %>% ungroup() %>%  summarise(sum(count)))/
+                (ab_age %>% ungroup() %>% summarise(sum(count)))),
+                "%.")
+subtitle <- paste0("The consolidation of the youngest age ranges starting in 2020 obscures the incidence of
+            abortion for the very young. There was an average of ",
+            round(ab_age %>% filter(age == "12-14" | age == "10-14" | age == "9-13") %>% ungroup()
+            %>%  summarise(mean(count))),
+            " abortions annually for nine to 14 year-olds from 2014 to 2019, ",
+            round(ab_age %>% filter(age == "12-14" | age == "10-14" | age == "9-13") %>% ungroup() %>%  summarise(sum(count))/
+            ab_age %>%filter(year != 2020 & year != 2021) %>% ungroup() %>% summarise(sum(count))*100,2),
+            "% of the total.<br><br><br>")
+
+#
+y_labs <- c(
+    "9-13",  
+    "10-14", 
+    "12-14",
+    "15-17",
+    "< 16",
+    "16-17",
+    "18-19",
+    "<span style='color:gray25;'>**20-24**</span>",
+    "<span style='color:gray25;'>**25-29**</span>",
+    "30-34",
+    "35-39",
+    "40-44",
+    "45 and up ")
+```
+
+```{r abortion by mother age, year}
+ggplot(ab_age) + 
+  geom_tile(aes(as.factor(year), age, fill = pct, width = 1),
+            color = NA)+
+  scale_fill_distiller(palette = "Greens",
+                       direction = 0,
+                       breaks = c(10, 20, 30),
+                       labels = c("10%","20%","30%"))+
+  scale_y_discrete(labels = y_labs,
+                   name = "Age",)+
+  scale_x_discrete(limits = factor(c(2014:2022)),
+                   breaks = c(2014, 2015, 2016,2017,2018,2019,2020,
+                              2021, 2022),
+                   labels = c("2014", "2015", "2016","2017","2018","2019","2020",
+                              "2021", "")
+                   )+
+  labs(title = title,
+       subtitle = subtitle,
+       fill = "Percent of\nabortions",
+       )+
+  guides(fill=guide_colourbar(title.vjust=.85))+
+  # line marking 14 and under 2019
+  geom_segment(aes(
+           x = 6.55, xend = 6.55,
+           y = .5, yend = 3.4),
+           color = "gray85", linewidth = .25)+
+  geom_text(aes(
+    x = 6.65, y = 2),
+    color = "gray55", size = rel(2.75), hjust = 0, fontface = "plain", lineheight = .9,
+    label = paste0("Nine to 14 year-olds had\n", round(ab_age %>% filter(age == "12-14" | age == "10-14" | age == "9-13") %>% ungroup() %>%  summarise(sum(count))/
+                ab_age %>%filter(year != 2020 & year != 2021) %>% ungroup() %>% summarise(sum(count))*100,2),
+                "% of all abortions from\n2014 to 2019."))+
+  # line marking 20-29 
+  geom_segment(aes(
+    x = 8.55, xend = 8.55,
+    y = 7.5, yend = 9.4),
+    color = "gray85")+
+  geom_text(aes(
+    x = 8.65, y = 8.5),
+    color = "gray25", size = rel(3.65), hjust = 0, fontface = "plain", lineheight = .9,
+    label = paste0(round(100*(ab_age %>% group_by(age) %>% filter(age == "20-24" | age == "25-29" ) %>% 
+                                ungroup() %>%  summarise(sum(count)))/(ab_age %>% ungroup() %>% summarise(sum(count)))),
+                   "% of\nall abortions"))+
+  t_theme()+
+  theme(
+    axis.text.y   = element_markdown(color = "dark gray", size = 8),
+    #axis.title  = element_blank(),
+    axis.title.x  = element_blank(),
+    axis.ticks  = element_blank(),
+    axis.line   = element_line(color = "light gray", size = .25),
+    plot.background  = element_rect(color = NA, fill  = panel_c),
+    panel.background = element_rect(color = NA, fill = panel_c),
+    panel.grid.major.y = element_blank(),
+    panel.grid.minor.y = element_blank(),
+    legend.background = element_rect(color = NA, fill = NA),
+    legend.text = element_text(colour="gray40", size = 7),
+    legend.title = element_text(colour="gray40", size = 8),
+    legend.direction = "horizontal",
+    legend.position = c(.78,1.075),
+    plot.title = element_textbox_simple(size = rel(1.5), color = "gray25", 
+                 hjust = 0,lineheight = 1, family = "serif", face = "plain", 
+                 margin = unit(c(0, .2, 6, 0), "pt")),
+    
+  )
+```
+
+
+
+Abortion rate by county and year original  {data-navmenu="Explore the data"}
+=====================================  
+Column {data-width=600}
+------------------------------------------------------------------------
+
+
+
+```{r}
+per_cap <- per_cap %>% 
+  select(year, Name, fem_pop, Count, rate)
+
+
+datatable(per_cap, 
+          colnames = c("Year", "County", "Female\npopulation", "Number of\nabortions", "Abortion\nrate\nper 1,000"),
+          caption = htmltools::tags$caption(
+            style = 'caption-side: top; text-align: center;',
+    "Abortion rate by county and year.", style = "color:black"),
+          rownames=FALSE, 
+          filter = "top", 
+          extensions = c('Buttons', 'FixedColumns'),
+          options = list(pageLength=10, 
+                         scrollX=T,
+                         dom = 'Bfrtip',
+                         scrollY = '250px',
+                         buttons = c('csv', 'excel')
+                         #columnDefs = list(list(className = 'dt-center', targets = 0:4))
+                         )) %>% 
+  formatRound(c('fem_pop', "Count"), digits = 0)
+
+```
+
+Abortion facility totals by year and location {data-navmenu="Explore the data"}
+=====================================  
+Column {data-width=600}
+------------------------------------------------------------------------
+
+
+```{r provider locations}
+prov <- read_csv("Exported_Data/prov.csv")
+
+prov %>% mutate(pct_by_yr = pct_by_yr/100) %>% select(-address) %>% 
+datatable(prov %>% select(c(year, facility, county, count_by_yr, pct_by_yr)),
+                         
+          colnames = c("Year", "Facility", "County", "Count\nby year",  "Percent\nby year"),
+          caption = htmltools::tags$caption(
+            style = 'caption-side: top; text-align: center;',
+    "Abortion facility totals by year.", style = "color:black"),
+          rownames=FALSE, 
+          filter = "top", 
+          extensions = c('Buttons', 'FixedColumns'),
+          options = list(pageLength=10, 
+                         scrollX=T,
+                         dom = 'Bfrtip',
+                         scrollY = '250px',
+                         buttons = c('csv', 'excel')
+                         #columnDefs = list(list(className = 'dt-center', targets = 0:4))     
+                         )) %>% 
+  formatPercentage('pct_by_yr', 2) %>% 
+  formatRound(c("count_by_yr"), digits = 0)
+```
+
+
+Abortion totals by age of mother, year {data-navmenu="Explore the data"}
+=====================================  
+Column {data-width=600}
+------------------------------------------------------------------------
+
+```{r age}
+ab_age %>% mutate(pct = pct/100) %>% select(-num) %>% select(c(year, age, count, pct,)) %>% 
+datatable(colnames = c("Year", "Age", "Count", "Percent\nby year"),
+          caption = htmltools::tags$caption(
+            style = 'caption-side: top; text-align: center;',
+    "Abortion totals by age of mother, year.", style = "color:black"),
+         
+          
+          rownames=FALSE, 
+          filter = "top", 
+          extensions = c('Buttons', 'FixedColumns'),
+          options = list(pageLength=10, 
+                         scrollX=T,
+                         dom = 'Bfrtip',
+                         scrollY = '250px',
+                         buttons = c('csv', 'excel')
+                         #columnDefs = list(list(className = 'dt-center', targets = 0:3))     
+                         )) %>%
+  formatPercentage('pct', 2) %>% 
+  formatRound(c("count"), digits = 0)
+```
+
+
+Abortion totals by race {data-navmenu="Explore the data"}
+=====================================  
+Column {data-width=600}
+------------------------------------------------------------------------
+
+```{r race2}
+
+both_pop %>% select(race, avg, avg_pct, total, cba_pct, count, pct_race) %>% 
+  mutate_at(c(3,5,7), ~ . /100) %>% 
+             mutate_at(c(3:5,7), round,3) %>%
+             mutate_at(c(2,4,6), round) %>% 
+  
+  
+  
+datatable(colnames = c("Population", "Percent of\ntotal population", "Childbearing age\npopulation",
+                       "Percent of\npopulation of\nchildbearing age", "Abortions", "Percent of                  childbearing\npopulation that had\nabortion"),
+          caption = htmltools::tags$caption(
+            style = 'caption-side: top; text-align: center;',
+    "Average race population and abortion totals 2014 to 2021.", style = "color:black"),
+         
+          
+          rownames=FALSE, 
+          filter = "top", 
+          extensions = c('Buttons', 'FixedColumns'),
+          options = list(pageLength=10, 
+                         scrollX=T,
+                         dom = 'Bfrtip',
+                         scrollY = '250px',
+                         buttons = c('csv', 'excel')
+                         #columnDefs = list(list(className = 'dt-center', targets = 0:3))
+                         )) %>% 
+  formatPercentage(c("avg_pct", "pct_race","cba_pct"), 2) %>% 
+  formatRound(c('avg', "total",  "count"), digits = 0)
+```
+
 
 

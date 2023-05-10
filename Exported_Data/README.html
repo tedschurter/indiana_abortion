@@ -297,23 +297,17 @@ overflow-y: auto;
 border: 1px solid #ddd;
 border-radius: 4px;
 }
-.tabset-dropdown > .nav-tabs > li.active:before {
-content: "";
+.tabset-dropdown > .nav-tabs > li.active:before, .tabset-dropdown > .nav-tabs.nav-tabs-open:before {
+content: "\e259";
 font-family: 'Glyphicons Halflings';
 display: inline-block;
 padding: 10px;
 border-right: 1px solid #ddd;
 }
 .tabset-dropdown > .nav-tabs.nav-tabs-open > li.active:before {
-content: "";
-border: none;
-}
-.tabset-dropdown > .nav-tabs.nav-tabs-open:before {
-content: "";
+content: "\e258";
 font-family: 'Glyphicons Halflings';
-display: inline-block;
-padding: 10px;
-border-right: 1px solid #ddd;
+border: none;
 }
 .tabset-dropdown > .nav-tabs > li.active {
 display: block;
@@ -449,6 +443,12 @@ abortions for each race from 2014 to 2021.</td>
 providers from 2014-2021. Street addresses were included in state
 reports only through 2017.</td>
 </tr>
+<tr class="odd">
+<td align="left"><a href="https://github.com/tedschurter/indiana_abortion/blob/main/Exported_Data/ab_age.csv">ab_age.csv</a></td>
+<td align="left"><a href="https://github.com/tedschurter/indiana_abortion/blob/main/Scripts/20220126_abortion_age.R">20220126_abortion_age.R</a></td>
+<td align="left">Abortion counts and percents for age categories from
+2014 to 2021.</td>
+</tr>
 </tbody>
 </table>
 </div>
@@ -523,51 +523,56 @@ represents.</td>
 <tr class="even">
 <td align="left"><a href="https://github.com/tedschurter/indiana_abortion/blob/main/Exported_Data/raw_gest.csv">raw_gest.csv</a></td>
 <td align="left">age</td>
-<td align="left">gestational age in weeks</td>
+<td align="left">Gestational age in weeks</td>
 </tr>
 <tr class="odd">
+<td align="left"></td>
+<td align="left">de</td>
+<td align="left">Dilation and evacuation abortion</td>
+</tr>
+<tr class="even">
 <td align="left"></td>
 <td align="left">rx</td>
-<td align="left">medication abortion</td>
-</tr>
-<tr class="even">
-<td align="left"></td>
-<td align="left">sc</td>
-<td align="left">suction curettage abortion</td>
+<td align="left">Medication abortion</td>
 </tr>
 <tr class="odd">
 <td align="left"></td>
-<td align="left">ma</td>
-<td align="left">medical abortion</td>
+<td align="left">sc</td>
+<td align="left">Suction curettage abortion</td>
 </tr>
 <tr class="even">
+<td align="left"></td>
+<td align="left">ma</td>
+<td align="left">Medical abortion</td>
+</tr>
+<tr class="odd">
 <td align="left"><a href="https://github.com/tedschurter/indiana_abortion/blob/main/Exported_Data/procedure_totals_pct_chng.csv">procedure_totals_pct_chng.csv</a></td>
 <td align="left">pct_cng</td>
 <td align="left">Percent change for procedure from previous year.</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td align="left"><a href="https://github.com/tedschurter/indiana_abortion/blob/main/Exported_Data/both_pop.csv">both_pop.csv</a></td>
 <td align="left">avg</td>
 <td align="left">Average population from 2014 to 2021</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td align="left"></td>
 <td align="left">avg_pct</td>
 <td align="left">Percent of entire population given race
 represents.</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td align="left"></td>
 <td align="left">count</td>
 <td align="left">Count of abortions for a given race.</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td align="left"></td>
 <td align="left">total</td>
 <td align="left">Total population of females of childbearing age for
 given race.</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td align="left"></td>
 <td align="left">ab_pct</td>
 <td align="left">Percent of all abortions that were completed by a given
@@ -576,19 +581,19 @@ some state reports did not align with existing Race population
 categories and is not listed separately even though they were used to
 calculate averages and percents.</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td align="left"></td>
 <td align="left">pct_all</td>
 <td align="left">Percent of entire childbearing population a given race
 comprises.</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td align="left"></td>
 <td align="left">pct_race</td>
 <td align="left">Percent of a given race’s childbearing age population
 that had had an abortion.</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td align="left"></td>
 <td align="left">cba_pct</td>
 <td align="left">Percent of given race’s population that is of
