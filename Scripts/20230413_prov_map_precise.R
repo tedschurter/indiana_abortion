@@ -2,9 +2,7 @@ library(ggforce)
 library(ggmap)
 library(ggrepel)
 library(ggtext)
-#library(gridtext)#?
 library(sf)
-library(tidycensus)
 library(tidyverse)
 library(tigris)
 library(osmdata)
@@ -453,7 +451,10 @@ im <-
 
 
 ggsave("Plots/png/prov_location_14_21.png", 
-       plot = last_plot(), width = 4.5,height = 6, units = "in")
+       plot = last_plot(), width = 5.4,height = 7.2, units = "in")
+
+ggsave("Plots/svg/prov_location_14_21.svg", 
+       plot = last_plot(), width = 5.4,height = 7.2, units = "in")
 
 
 

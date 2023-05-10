@@ -297,23 +297,17 @@ overflow-y: auto;
 border: 1px solid #ddd;
 border-radius: 4px;
 }
-.tabset-dropdown > .nav-tabs > li.active:before {
-content: "";
+.tabset-dropdown > .nav-tabs > li.active:before, .tabset-dropdown > .nav-tabs.nav-tabs-open:before {
+content: "\e259";
 font-family: 'Glyphicons Halflings';
 display: inline-block;
 padding: 10px;
 border-right: 1px solid #ddd;
 }
 .tabset-dropdown > .nav-tabs.nav-tabs-open > li.active:before {
-content: "";
-border: none;
-}
-.tabset-dropdown > .nav-tabs.nav-tabs-open:before {
-content: "";
+content: "\e258";
 font-family: 'Glyphicons Halflings';
-display: inline-block;
-padding: 10px;
-border-right: 1px solid #ddd;
+border: none;
 }
 .tabset-dropdown > .nav-tabs > li.active {
 display: block;
@@ -390,8 +384,7 @@ age and shapefile geometry data for each county.</td>
 <tr class="odd">
 <td align="left"><a href="https://github.com/tedschurter/indiana_abortion/blob/main/Scripts/20220909_maps.R">20220909_maps.R</a></td>
 <td align="left">Imports and joins data from previous two scripts to
-create choropleth <a href="https://github.com/tedschurter/indiana_abortion/blob/main/Plots/20221027_maps_01.pdf">map</a>
-of 2021 abortion counts by county.</td>
+create choropleth map of 2021 abortion counts by county.</td>
 <td align="left"></td>
 </tr>
 <tr class="even">
@@ -430,24 +423,6 @@ female population and the childbearing age population.</td>
 <td align="left"><a href="https://github.com/tedschurter/indiana_abortion/blob/main/Exported_Data/both_pop.csv">both_pop.csv</a></td>
 </tr>
 <tr class="even">
-<td align="left"><a href="https://github.com/tedschurter/indiana_abortion/blob/main/Scripts/20230105_abortion_ethnicity_race.R">20230105_abortion_ethnicity_race.R</a></td>
-<td align="left">Imports and averages counts of the total female
-population and the female population of childbearing age as well as the
-count of abortions for each race from 2014 to 2021 to create plot
-showing rate of abortion by race as well as the relative size of the
-female population and the childbearing age population.</td>
-<td align="left"><a href="https://github.com/tedschurter/indiana_abortion/blob/main/Exported_Data/both_pop.csv">both_pop.csv</a></td>
-</tr>
-<tr class="odd">
-<td align="left"><a href="https://github.com/tedschurter/indiana_abortion/blob/main/Scripts/20230216_ab_inc_2.R">20230216_ab_inc_2.R</a></td>
-<td align="left">Imports 5 year American Community Survey median
-household income data for 2021 and imports and averages abortion rate
-data from 2017 to 2021. Generates ranking on a three step scale for both
-median income and abortion rate to generate bivariate choropleth map
-showing median income and abortion rate for all Indiana counties.</td>
-<td align="left"></td>
-</tr>
-<tr class="even">
 <td align="left"><a href="https://github.com/tedschurter/indiana_abortion/blob/main/Scripts/20230327_provider_loc.R">20230327_provider_loc.R</a></td>
 <td align="left">Imports abortion provider locations from 2014 to 2021.
 Geocodes counties from street addresses for 2014:2017 when state reports
@@ -462,6 +437,28 @@ facilities where abortions occurred between 2014 and 2021 with circles
 proportional to the percent of all abortions performed at facility and
 color-coded by facility type. Inset maps show metropolitan areas of
 counties where more than 1 facility was present.</td>
+<td align="left"></td>
+</tr>
+<tr class="even">
+<td align="left"><a href="(https://github.com/tedschurter/indiana_abortion/blob/main/Scripts/20220126_abortion_age.R)">20220126_abortion_age.R</a></td>
+<td align="left">Imports and cleans abortion age data from 2014-2021.
+Calculate percent of abortions per age range and visualize data.</td>
+<td align="left"><a href="https://github.com/tedschurter/indiana_abortion/blob/main/Exported_Data/ab_age.csv">ab.age.csv</a></td>
+</tr>
+<tr class="odd">
+<td align="left"><a href="(https://github.com/tedschurter/indiana_abortion/blob/main/Scripts/20230419_prov_plots.R)">20230419_prov_plots.R</a></td>
+<td align="left">Import provider data from <a href="https://github.com/tedschurter/indiana_abortion/blob/main/Exported_Data/prov.csv">prov.csv</a>
+and create visualizations for abortion facility counts by type, percent
+of abortion by facility for clinics and hospitals</td>
+<td align="left"></td>
+</tr>
+<tr class="even">
+<td align="left"><a href="(https://github.com/tedschurter/indiana_abortion/blob/main/Scripts/20230416_biv_prov_age_03_rate.R)">20230416_biv_prov_age_03_rate.R</a></td>
+<td align="left">Imports population data from US Census Bureau 2020-2021
+Population Estimates and joins with 2021 abortion totals. Uses biscale
+package to test jenks division breaks with and without outliers for
+bivariate choropleth map showing abortion rates and rates of 20-34 year
+old women per 1,000 in each Indiana county.</td>
 <td align="left"></td>
 </tr>
 </tbody>

@@ -187,8 +187,12 @@ prov <- prov %>% mutate(facility = if_else(
 prov <- prov %>% mutate(county = str_squish(county),
                         facility = str_squish(facility)) 
 
+# update 20230502 - correct county for "Indiana University
+# Health North Hospital" that state reports in 2018, 2019 wrongly label as in Marion Co.
+
+prov$county[prov$facility == "Indiana University Health North Hospital"] <- "Hamilton"
 
 # write prov dataframe to csv
-#write_csv(prov, file = "Exported_Data/prov.csv")
+write_csv(prov, file = "Exported_Data/prov.csv")
 
 
