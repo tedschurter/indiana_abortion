@@ -974,7 +974,6 @@ geom_segment(x=.55, xend = 2.20, y = -14.5, yend = -14.5, color="light gray", si
 ```
 
 
-
 Abortion procedures over time {data-navmenu="Charts"}
 ===================================== 
 
@@ -2508,6 +2507,127 @@ ggplot(ab_age) +
 
 
 
+Abortion procedure by education {data-navmenu="Charts"}
+===================================== 
+
+
+
+```{r include = F}
+
+knitr::opts_chunk$set(eval = T,
+                      echo = F,
+                      include = T,
+                      warning = F,
+                      dev = "png",
+                      dpi = 200,
+                      cache = FALSE,
+                      fig.align  = "left",
+                      fig.width  =  10,
+                      fig.height =  5.86,
+                      #fig.asp = 1.83,
+                      out.width  = "90%",
+                      out.height = "90%"
+                      )
+
+```
+
+```{r import education data}
+ed <- read_csv("Exported_Data/ed_ab.csv")
+```
+
+```{r create line chart}
+# create line chart ####
+
+# make dataframes for lines with and without color
+top_ed <- ed %>% 
+  filter(Level == "High school diploma or GED" |
+        Level == "Some college credit, no degree")
+
+top_ed_lab <- top_ed %>% filter(Year == 2021)
+
+bottom_ed <- ed %>% 
+  filter(Level != "High school diploma or GED" &
+         Level != "Some college credit, no degree")
+
+bottom_ed_lab <- bottom_ed %>% filter(Year == 2021)
+
+# titles, caption, colors ####
+
+# high school color
+hsc <- "#5ab4ac"
+# some college color
+scc <- "#d8b365"
+
+# set colors for top two categories
+ed_cols <- c("High school diploma or GED" = hsc,
+             "Some college credit, no degree" = scc)
+
+
+title <- paste0(
+  "<span style = 'color:black;'>Most Indiana residents who get an abortion have not 
+  completed higher levels of education.</span>")
+
+subtitle <- paste0(
+  "<span style = 'color:black;'>On average, <span style = 'color:",hsc,";'>",
+  round(sum(ed$Count[ed$Level == "High school diploma or GED"])/sum(ed$Count)*100),
+  "%</span> have a <span style = 'color:",hsc,";'>high school diploma or GED </span> and <span style = 'color:",scc,";'>",
+  round(sum(ed$Count[ed$Level == "Some college credit, no degree"])/sum(ed$Count)*100),
+  "%</span> have <span style = 'color:",scc,";'>some college credit, but 
+  no degree.</span>")
+
+caption <- "<br>**Data:** 'www.in.gov/health/vital-records/vital-statistics/terminated-pregnancy-reports'<br>
+**Graphic:** Ted Schurter 2023"
+
+#format y scale 
+pct1 <- scales::percent_format(scale = 1)
+# background color 
+panel_c <- "#fdfdf2"
+
+ggplot()+
+  # top two categories
+  geom_line(data = top_ed,
+            aes(Year, Percent, color = Level, group = Level),
+            show.legend = F, size = .65)+
+  geom_text(data = top_ed_lab,
+            aes(2021, Percent, color = Level),
+            label = top_ed_lab$Level, show.legend = F,
+            vjust = 0, hjust = -.15)+
+  # remaining categories
+  geom_line(data = bottom_ed,
+          aes(Year, Percent, group = Level),
+          show.legend = F, color = "gray")+
+  geom_text_repel(data = bottom_ed_lab,
+            aes(2021, Percent), xlim = 2021.25,
+            label = bottom_ed_lab$Level, show.legend = F,
+            vjust = .15, hjust = "left", color = "gray", size = 3,
+            min.segment.length = .5, point.padding = 2.5)+
+  scale_x_continuous(limits = c(2014, 2023),
+                     breaks = seq(2014, 2023, by= 1),
+                     labels = c("2014", "2015", "2016", "2017", "2018", "2019",
+                                "2020", "2021", "", ""))+
+  scale_color_manual(values = ed_cols)+
+  # add grid lines
+  geom_segment(aes(x = 2014, xend = 2021,
+                   y = c(10,20,30,40), yend = c(10,20,30,40)),
+               color = "gray80", size = .5, linetype = "dotted")+
+  scale_y_continuous(labels = scales::percent_format(scale = 1))+
+  t_theme()+
+  theme(
+    panel.grid.major.y = element_blank(),
+    axis.title.y = element_blank(),
+    axis.title.x = element_blank(),
+    panel.background = element_rect(fill = panel_c),
+    plot.background = element_rect(fill = panel_c),
+  )+
+  labs(title = title,
+       subtitle = subtitle,
+       caption = caption
+       )
+  
+```
+
+
+
 Abortion rate by county and year original  {data-navmenu="Explore the data"}
 =====================================  
 Column {data-width=600}
@@ -2634,4 +2754,30 @@ datatable(colnames = c("Population", "Percent of\ntotal population", "Childbeari
 ```
 
 
+Abortion totals by education {data-navmenu="Explore the data"}
+=====================================  
+Column {data-width=600}
+------------------------------------------------------------------------
+
+```{r ed table}
+
+
+ed %>% mutate(Percent = Percent/100) %>% 
+datatable(colnames = c("Year", "Education Level", "Count", "Percent"),
+  caption = htmltools::tags$caption(
+          style = 'caption-side: top; text-align: center;',
+    "Abortion totals by education 2014 to 2021.", style = "color:black"),
+          rownames=FALSE, 
+          filter = "top", 
+          extensions = c('Buttons', 'FixedColumns'),
+          options = list(pageLength=10, 
+                         scrollX=T,
+                         dom = 'Bfrtip',
+                         scrollY = '250px',
+                         buttons = c('csv', 'excel')
+                         #columnDefs = list(list(className = 'dt-center', targets = 0:3))
+                         )) %>% 
+  formatPercentage("Percent", 2) %>% 
+  formatRound("Count", digits = 0)
+```
 

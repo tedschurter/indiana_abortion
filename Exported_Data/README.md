@@ -20,6 +20,7 @@ The Terminated Pregnancy Reports published by the Indiana Department of Health i
 [both_pop.csv](https://github.com/tedschurter/indiana_abortion/blob/main/Exported_Data/both_pop.csv)| [20230105_abortion_ethnicity_race.R](https://github.com/tedschurter/indiana_abortion/blob/main/Scripts/20230105_abortion_ethnicity_race.R)|The average total female population and the average female population of childbearing age as well as the average count of abortions for each race from 2014 to 2021. 
 [prov.csv](https://github.com/tedschurter/indiana_abortion/blob/main/Exported_Data/prov.csv)|[20230327_provider_loc.R](https://github.com/tedschurter/indiana_abortion/blob/main/Scripts/20230327_provider_loc.R)|Facility name and location by county for abortion providers from 2014-2021. Street addresses were included in state reports only through 2017.
 [ab_age.csv](https://github.com/tedschurter/indiana_abortion/blob/main/Exported_Data/ab_age.csv)|[20220126_abortion_age.R](https://github.com/tedschurter/indiana_abortion/blob/main/Scripts/20220126_abortion_age.R)|Abortion counts and percents for age categories from 2014 to 2021.|
+[ed_ab.csv](https://github.com/tedschurter/indiana_abortion/blob/main/Exported_Data/ed_ab.csv)|[20230105_abortion_education.R](https://github.com/tedschurter/indiana_abortion/blob/main/Scripts/20230105_abortion_education.R)|Abortion counts by level of education from 2014 to 2021.|
 
 
 

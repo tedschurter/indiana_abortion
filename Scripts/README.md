@@ -17,6 +17,7 @@
 [20220126_abortion_age.R]((https://github.com/tedschurter/indiana_abortion/blob/main/Scripts/20220126_abortion_age.R))|Imports and cleans abortion age data from 2014-2021. Calculate percent of abortions per age range and visualize data.| [ab.age.csv](https://github.com/tedschurter/indiana_abortion/blob/main/Exported_Data/ab_age.csv)|
 [20230419_prov_plots.R]((https://github.com/tedschurter/indiana_abortion/blob/main/Scripts/20230419_prov_plots.R))|Import provider data from [prov.csv](https://github.com/tedschurter/indiana_abortion/blob/main/Exported_Data/prov.csv) and create visualizations for abortion facility counts by type, percent of abortion by facility for clinics and hospitals|
 [20230416_biv_prov_age_03_rate.R]((https://github.com/tedschurter/indiana_abortion/blob/main/Scripts/20230416_biv_prov_age_03_rate.R))| Imports population data from US Census Bureau 2020-2021 Population Estimates and joins with 2021 abortion totals. Uses biscale package to test jenks division breaks with and without outliers for bivariate choropleth map showing abortion rates and rates of 20-34 year old women per 1,000 in each Indiana county.|
+[20230105_abortion_education.R]((https://github.com/tedschurter/indiana_abortion/blob/main/Scripts/20230105_abortion_education.R))| Import, clean and visualize count of abortion by education from 2014 to 2021. |[ed_ab.csv](https://github.com/tedschurter/indiana_abortion/blob/main/Exported_Data/ed_ab.csv)|
 
 
 
