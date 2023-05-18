@@ -2612,6 +2612,7 @@ ggplot()+
                color = "gray80", size = .5, linetype = "dotted")+
   scale_y_continuous(labels = scales::percent_format(scale = 1))+
   t_theme()+
+  coord_cartesian(clip = "off")+
   theme(
     panel.grid.major.y = element_blank(),
     axis.title.y = element_blank(),
