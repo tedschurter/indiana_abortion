@@ -2364,10 +2364,10 @@ ggplot()+
                 round(prov %>% ungroup() %>% filter(facility == "Sidney & Lois Eskenazi Hospital") %>% 
                         summarise(sum(count_by_yr))/prov %>% ungroup() %>% filter(str_detect(facility, "Hospital") == TRUE) %>% 
                         summarise(sum(count_by_yr))*100),
-                        "%</span> of hospital abortions but just <span style='color:#fdae61;'>",
+                        "%</span> of hospital abortions but just ",
                 round(prov %>% ungroup() %>% filter(facility == "Sidney & Lois Eskenazi Hospital") %>% 
                         summarise(sum(count_by_yr))/tot_ab*100,2),
-            "%</span> of all and was the only facility that conducted 
+            "% of all and was the only facility that conducted 
             them each year."),
        
        subtitle = paste0("There were <span style = 'color:#756bb1;'>",
