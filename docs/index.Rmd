@@ -1258,62 +1258,11 @@ Abortion provider locations and volume  {data-navmenu="Maps"}
 
 
 
-```{r import data, calculate and correct lat, lon}
+```{r import data}
 # import provider location data  ####
-prov <- read_csv("Exported_Data/prov.csv")
+prov <- read_csv("Exported_Data/prov_ll.csv")
 
 # 
-
-# total count of all abortions 2014:2021 ####
-tot_count <- sum(prov$count_by_yr)
-
-# calculate percent of all abortions at each facility 2014:2021 ####
-prov <- prov %>% 
-  group_by(facility) %>% 
-  mutate(tot_fac_pct = round(100*(sum(count_by_yr)/tot_count),2)) 
-
-
-# create dataframe of distinct facilities and their lat and lon; first arrange prov 
-# dataframe in descending order to get most recent year address data was available
-# for that facility. If it was pre 2018, the address was provided in the report.
-# After 2017, only the county was provided so addresses will reflect what is returned
-# when geolocating modern facility name today.
-pd <- prov %>% arrange(desc(year)) %>% distinct(facility, .keep_all = T)
-
-# if address provided, use it for geocoding, else generate address by combining
-# facility name, county and state and geocode that instead.
-pd[,(ncol(prov)+1):(ncol(prov)+2)] <- ggmap::geocode(
-  location = 
-    if_else(is.na(pd$address) == "FALSE", 
-            pd$address,
-            str_c(pd$facility, paste0(pd$county, " County, IN"), 
-                  sep=", ")), output = "latlon")
-
-# returns warning that "Sydney $ Louis..." returned address from Australia.
-# To fix that, pull address from last known year for Sidney & Lois Eskenazi Hospital
-sl <- prov$address[prov$facility == "Sidney & Lois Eskenazi Hospital" & prov$year == 2017]
-
-#create object with lon and lat of correct address for hospital
-sl_ll <- ggmap::geocode(location = sl, output = "latlon")
-
-# add correct lon and lat to Sidney $ Lois...
-pd$lon[pd$facility == "Sidney & Lois Eskenazi Hospital"] <- sl_ll[1]
-pd$lat[pd$facility == "Sidney & Lois Eskenazi Hospital"] <- sl_ll[2]
-
-# clean up
-rm(sl, sl_ll)
-
-# remove unneeded pd columns before join
-pd <- pd %>% select(facility, lon, lat)
-
-prov <- left_join(prov, pd, by = "facility")
-
-prov$lat[prov$county == "Hamilton"] <- 39.965154
-
-# convert lon and lat into numeric, not list
-prov$lon <- as.numeric(prov$lon) 
-prov$lat <- as.numeric(prov$lat) 
-
 ```
 
 ```{r import county lines, convert to sf dataframe}
@@ -2260,8 +2209,6 @@ ggplot()+
 Hospital abortion count by year {data-navmenu="Charts"}
 ===================================== 
 
-
-
 ```{r hospital count by year}
 ggplot()+
   # lines for scale - 0, .5, 1%
@@ -2378,11 +2325,8 @@ ggplot()+
 ```
 
 
-
 Abortion by age of mother and year {data-navmenu="Charts"}
 ===================================== 
-
-
 
 ```{r age colors, captions, titles}
 # titles, labels and captions ####
@@ -2507,10 +2451,317 @@ ggplot(ab_age) +
 
 
 
-Abortion procedure by education {data-navmenu="Charts"}
+Abortion by month {data-navmenu="Charts"}
 ===================================== 
 
+```{r import month data}
+mnth <- read_csv("Exported_Data/month_ab_IN_res_clean.csv")
+```
 
+```{r set month colors, order}
+# set colors 
+
+# panel color
+panel_c <- "#fdfdf2"
+
+# monthly color 
+mc <- "#1a9641"
+avgc <- "#7b3294"
+# high average month 
+h_avgc <- "#006837"  
+# low average month
+l_avgc <- "#78c679"
+# avg month
+avg_mc <- "#af8dc3"
+
+mnth$month <- factor(mnth$month, levels = c(
+  "January", "February", "March", "April", "May", "June", "July","August",
+  "September", "October", "November", "December"))
+
+# short month labels
+s_m_lab <-  c("January" = "Jan.",
+              "February" = "February",
+              "March" = "Mar.", 
+              "April" = "April", 
+              "May" = "May",
+              "June" = "June",
+              "July" = "July",
+              "August" = "Aug.",
+              "September" = "September",
+              "October" = "Oct.",
+              "November" = "Nov.",
+              "December" = "Dec.")
+
+# month labels colors 
+
+m_lab_c <- c("January"    = "gray70",
+             "February"   = l_avgc,
+             "March"     = "gray70",
+             "April"     = "gray70",
+             "May"       = "gray70",
+             "June"      = "gray70",
+             "July"      = "gray70",
+             "August"    = "gray70",
+             "September" = h_avgc,
+             "October"   = "gray70",
+             "November"  = "gray70",
+             "December"  = "gray70")
+```
+
+```{r, calculate percents, make plot showing pct change from mean}
+# what is the percent above or below the average monthly total for each month?
+t <-  mnth %>% 
+  ungroup() %>% 
+  group_by(month) %>% 
+  mutate(mn_avg = mean(res),
+         dif_mn = res-mn_avg,
+         pct_df_m = (dif_mn/mn_avg)*100) 
+
+ggplot()+ theme_classic()+
+  # line for monthly totals
+  geom_segment(data = mnth,
+               aes(x=2013.3, xend = 2021,
+                   y = 0, yend = 0),
+               size = .25, color = "gray70")+
+  geom_line(data = mnth %>% 
+              ungroup() %>% 
+              group_by(month) %>% 
+              mutate(mn_avg = mean(res),
+                     dif_mn = res-mn_avg,
+                     pct_df_m = (dif_mn/mn_avg)*100),
+            aes(year, pct_df_m, group = month), 
+            size = .3, color = "gray92", show.legend = F)+
+  geom_line(data = mnth %>% 
+              ungroup() %>% 
+              group_by(month) %>% 
+              mutate(mn_avg = mean(res),
+                     dif_mn = res-mn_avg,
+                     pct_df_m = (dif_mn/mn_avg)*100) %>% filter(month == "September"),
+            aes(year, pct_df_m, group = month), 
+            size = .75, color = h_avgc, show.legend = F)+
+  geom_line(data = mnth %>% 
+              ungroup() %>% 
+              group_by(month) %>% 
+              mutate(mn_avg = mean(res),
+                     dif_mn = res-mn_avg,
+                     pct_df_m = (dif_mn/mn_avg)*100) %>% filter(month == "February"),
+            aes(year, pct_df_m, group = month), 
+            size = .75, color = l_avgc, show.legend = F)+
+  
+  geom_text_repel(data = mnth %>% 
+                    ungroup() %>% 
+                    group_by(month) %>% 
+                    mutate(mn_avg = mean(res),
+                           dif_mn = res-mn_avg,
+                           pct_df_m = (dif_mn/mn_avg)*100) %>% filter(year == 2021),
+    #data= t %>% filter(year == 2021),
+                  aes(year, pct_df_m, label = s_m_lab),
+                  xlim = c(2021.7), 
+                  hjust = .25,
+                  point.padding = 1.25,
+                  nudge_y = 0, 
+                  nudge_x = .7,
+                  force = 2,
+                  color = m_lab_c, 
+                  segment.color = "gray75",
+                  size = rel(2.35), 
+                  fontface = "plain", 
+                  direction = "y",
+                  segment.size = 0.1,
+                  min.segment.length = 1.5,
+                  seed = 2, 
+  )+
+  geom_textbox(data = mnth %>% 
+                 ungroup() %>% 
+                 group_by(month) %>% 
+                 mutate(mn_avg = mean(res),
+                        dif_mn = res-mn_avg,
+                        pct_df_m = (dif_mn/mn_avg)*100),
+    aes(x= 2019.85, y = 15.15),
+    label = paste0("<span style = 'color:",h_avgc,"'>September</span> 
+                went from well **below** its monthly average in 2019 to well **above** it in 2020."),
+    label.colour = NA, fill = panel_c,
+    size = rel(3.25), color = "gray50", 
+    hjust = 1, box.color = NA)+
+  geom_textbox(data = mnth %>% 
+                 ungroup() %>% 
+                 group_by(month) %>% 
+                 mutate(mn_avg = mean(res),
+                        dif_mn = res-mn_avg,
+                        pct_df_m = (dif_mn/mn_avg)*100),
+    aes(x= 2017, y = -17.9),
+    label = paste0("<span style = 'color:",h_avgc,"'>**September**</span> 
+                was", 
+                   round(abs(t$pct_df_m[t$year == 2019 & t$month == "September"])),
+                   "% below its annual average in 2019."),
+    label.colour = NA, fill = panel_c,
+    size = rel(2.5), color = "gray50", 
+    hjust = 0, box.color = NA)+
+  geom_segment(aes(
+    x = 2019.67, xend = 2019.95,
+    y = 13, yend = 11.95), 
+    color = "gray10", linewidth = .15)+
+  geom_textbox(
+    aes(x= 2013.3, y = 3.65),
+    label = "Above 0 = more than the monthly average.", 
+    label.colour = NA, fill = panel_c,
+    size = rel(2), color = "gray50", 
+    hjust = 0, box.color = NA,   width = unit(.6, "inch"))+
+  geom_textbox(
+    aes(x= 2013.3, y = -3.65),
+    label = "Below 0 = less than the monthly average.", 
+    label.colour = NA, fill = panel_c,
+    size = rel(2), color = "gray50", 
+    hjust = 0, box.color = NA,   width = unit(.6, "inch"))+
+  
+  
+  scale_y_continuous(limits = c(-20,20),
+                     breaks = c(-20, -10, 0, 10, 20),
+                     labels = c("-20%", "-10%", "0", "10%", "20%"))+
+  scale_x_continuous(limits = c(2013.3, 2022),
+                     breaks = seq(2013, 2022, by = 1),
+                     labels = c( "", "2014", "2015", "2016", "2017", "2018",
+                                 "2019", "2020", "2021", ""))+
+  t_theme()+
+  #facet_wrap(~ month, scales = "free")+
+  theme(
+    strip.background = element_blank(),
+    strip.text = element_text(color = "gray35", hjust = 0),
+    panel.grid.major.y = element_blank(),
+    panel.background = element_rect(fill = panel_c,
+                                    color = panel_c),
+    plot.background = element_rect(fill = panel_c,
+                                   color = panel_c),
+    axis.title.y = element_blank(),
+    axis.title.x = element_blank()
+  )+
+  labs(title = paste0("The number of abortions to Indiana residents in a month fluctuates above 
+  and below its eight-year average, sometimes dramatically. Between 2014 and 
+  2021,<span style = 'color:",h_avgc,"'> ",
+                      month.name[as.numeric(t %>% mutate(ab_pct_cg = pct_df_m-lag(pct_df_m)) %>% 
+                                              arrange(desc(abs(ab_pct_cg))) %>% ungroup() %>% slice(1) %>% select(month))],"
+  </span>had the highest year to year change, shifting <span style = 'color:",h_avgc,"'>",
+                      round(t %>% mutate(ab_pct_cg = pct_df_m-lag(pct_df_m)) %>% arrange(desc(abs(ab_pct_cg))) %>% 
+                              ungroup() %>% slice(1) %>% select(ab_pct_cg)),
+                      "% </span>from 2019 to 2020. <span style = 'color:",l_avgc,"'> ",
+                      month.name[as.numeric(mnth %>% group_by(month) %>% mutate(mn_df = 100*(res-lag(res))/lag(res)) %>% ungroup() %>% 
+                                              group_by(month) %>% summarise(m = mean(mn_df, na.rm = T)) %>%  arrange(abs(m)) %>% select(month) %>% slice(1))],"
+  </span>had the lowest average annual change."),
+       
+       subtitle = "Each line shows how much a single month's abortion totals differ
+  from the month's multi-year average.",      
+       caption = "<br>**Data:** 'www.in.gov/health/vital-records/vital-statistics/terminated-pregnancy-reports'<br>
+  **Graphic:** Ted Schurter 2023")  
+```
+
+Abortion by month and year {data-navmenu="Charts"}
+===================================== 
+
+```{r faceted month by year}
+
+mnth2 <- mnth
+mnth2$m2 <- mnth2$month
+# remove original month column so new dataframe isn't faceted by it when month is called
+mnth2$month <- NULL
+
+mnth2$y2 <- mnth$year
+mnth2$month <- NULL
+mnth2$year <- NULL
+
+
+yr_tot_lab <- mnth %>% group_by(year) %>% 
+  mutate(annual = sum(res)) %>% 
+  ungroup() %>% 
+  mutate(mn_an = mean(annual),
+         lab = paste0(if_else(annual>mean(annual), "Above annual average", "Below annual average"))) %>% 
+  ungroup() %>% 
+  mutate(
+    pct = round((annual-mean(annual))/annual*100),
+    col = if_else(pct>0, "black", "red"))
+
+# create duplicate year column for faceting
+mnth2$y2 <- mnth$year
+mnth2$month <- NULL
+mnth2$year <- NULL
+
+mnth %>% group_by(month) %>% 
+  mutate(av = round(mean(res))) %>% 
+  ggplot()+ theme_classic()+
+  # lines for all months
+  geom_line(data = mnth2,
+            aes(m2, res, group = y2), color = "gray92", size = .2)+
+  # line for monthly average
+  geom_line(data = mnth %>% group_by(month) %>%
+              summarise(res = mean(res)) %>%
+              ungroup(),
+            aes(month, res, group = 1),  color = avgc, show.legend = F)+
+  # line for annual average
+  geom_segment(data = mnth %>%
+                 summarise(res = mean(res)) %>%
+                 ungroup(),
+               aes(x = 1, xend = 12,
+                   y = res, yend = res), size = .1, color = "gray30", 
+               #linetype = "dotted", 
+               show.legend = F)+
+  # line for monthly totals
+  geom_line(
+    aes(month, res, group = year), color = mc, show.legend = F)+
+  # label for monthly average
+  geom_text(data = mnth %>% filter( year == "2014"),
+            aes(x= 1.3, y = 560, label = "Overall\naverage"),
+            size = rel(2), color = "gray50", hjust = 0, lineheight = .8, 
+            vjust = 1)+
+  # line for label for monthly average
+  geom_segment(data = mnth %>% filter( year == "2014"),
+               aes(x=1.1, xend = 1.1,
+                   y = 550, yend = 600),
+               size = .05, color = avgc)+
+  # total abortions for year
+  geom_richtext(data = yr_tot_lab,
+                aes(x= 8.2, y = 770, 
+                    label = paste0(pct,"% ",lab," ")),
+                label.colour = NA, fill = panel_c,
+                size = rel(2.15), color = yr_tot_lab$col, hjust = 0)+
+  # invisible mark to preserve equal y scale for each facet
+  geom_point(aes(x=1, y = 500), color = panel_c)+
+  scale_y_continuous(limits = c(400,800),
+                     breaks = c(400, 600, 800),
+                     labels = c("400", "600", "800"))+
+  scale_x_discrete(
+    breaks = c("January", "February", "March", "April","May", "June",
+               "July", "August", "September", "October", "November","December"),
+    labels = c("Jan","Feb","Mar", "April", "May", "June", "July",
+               "Aug", "Sept", "Oct", "Nov", "Dec"))+
+  t_theme()+
+  facet_wrap(~ year, scales = "free")+
+  theme(
+    strip.background = element_blank(),
+    strip.text = element_text(color = "gray35", hjust = 0),
+    panel.grid.major.y = element_blank(),
+    panel.background = element_rect(fill = panel_c,
+                                    color = panel_c),
+    plot.background = element_rect(fill = panel_c,
+                                   color = panel_c),
+    axis.text = element_text(color = "gray55",
+                             size  = rel(.4)),
+    axis.title.y = element_blank(),
+    axis.title.x = element_blank()
+  )+
+  labs(title = paste0("The individual <span style = 'color:",avgc,"'>monthly average</span> of Indiana resident abortions from 2014 to 2021 reveals annual trends 
+  and how far a month’s<span style = 'color:",mc,"'> 
+  totals</span> fluctuate from its average in a given year."),
+       subtitle = paste0("The average number of monthly abortions is ", 
+                         round(mean(mnth$res)),
+                         "; the average annual total is ",
+                         prettyNum(round(mnth %>% group_by(year) %>% summarise(tot = sum(res)) %>% summarise(mean(tot))), big.mark = ",", scientific = FALSE),"."),
+       caption = "<br>**Data:** 'www.in.gov/health/vital-records/vital-statistics/terminated-pregnancy-reports'<br>
+  **Graphic:** Ted Schurter 2023")
+```
+
+
+
+Abortion procedure by education {data-navmenu="Charts"}
+===================================== 
 
 ```{r include = F}
 
@@ -2628,13 +2879,10 @@ ggplot()+
 ```
 
 
-
 Abortion rate by county and year original  {data-navmenu="Explore the data"}
 =====================================  
 Column {data-width=600}
 ------------------------------------------------------------------------
-
-
 
 ```{r}
 per_cap <- per_cap %>% 
@@ -2782,3 +3030,32 @@ datatable(colnames = c("Year", "Education Level", "Count", "Percent"),
   formatRound("Count", digits = 0)
 ```
 
+Abortion totals by month {data-navmenu="Explore the data"}
+=====================================  
+Column {data-width=600}
+------------------------------------------------------------------------
+
+```{r month table}
+
+mnth <- read_csv("Exported_Data/month_ab_clean.csv")
+
+
+mnth %>% 
+datatable(colnames = c("Year", "Month", "Resident", "Non-resident"),
+  caption = htmltools::tags$caption(
+          style = 'caption-side: top; text-align: center;',
+    "Abortion totals by month 2014 to 2021.", style = "color:black"),
+          rownames=FALSE, 
+          filter = "top", 
+          extensions = c('Buttons', 'FixedColumns'),
+          options = list(pageLength=10, 
+                         scrollX=T,
+                         dom = 'Bfrtip',
+                         scrollY = '250px',
+                         buttons = c('csv', 'excel')
+          ))
+                         #columnDefs = list(list(className = 'dt-center', targets = 0:3))
+  #                        )) %>% 
+  # formatPercentage("Percent", 2) %>% 
+  # formatRound("Count", digits = 0)
+```
