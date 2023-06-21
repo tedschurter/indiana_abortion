@@ -6,10 +6,6 @@ library(tigris)
 library(tidyverse)
 
 
-# import provider lat and lon
-
-prov <- read_csv("Exported_Data/prov_ll.csv") %>% 
-  filter(year == 2021)
 
 # 2020-2021 population totals ####
 # categorical variables (age, sex) were not available via the api for 2021. found 
@@ -26,7 +22,7 @@ prov <- read_csv("Exported_Data/prov_ll.csv") %>%
 # create vector of ages needed
 ages <- c("AGE2024_FEM", "AGE2529_FEM", "AGE3034_FEM")
 
-# import data from census.gov 2020-2021 population estimates
+# import data from census.gov
 pop_data <- read_csv("https://www2.census.gov/programs-surveys/popest/datasets/2020-2021/counties/asrh/cc-est2021-agesex-18.csv")
 
 # filter to ages of 20:34-year-old females in 2021
@@ -46,6 +42,7 @@ pop_1 <- pop_data  %>%
   ungroup()
 
 # import count for all women of child bearing age in county
+
 all_ages <- "POPEST_FEM"
 #c("AGE1519_FEM","AGE2024_FEM","AGE2544_FEM","AGE4549_FEM")
 pop_2 <- pop_data  %>% 
@@ -63,22 +60,47 @@ pop_2 <- pop_data  %>%
   filter(year == 2021) %>% 
   ungroup() %>% 
   select(-year)
+
+
+# 20230621 update: create column for count of childbearing age (cba) women to use 
+# in calculating rate.
+
+cba_ages <- c("AGE1014_FEM", "AGE1519_FEM","AGE2024_FEM","AGE2544_FEM","AGE4549_FEM")
+pop_3 <- pop_data  %>% 
+  select(c(county=CTYNAME,year=YEAR, paste(cba_ages), COUNTY, STATE)) %>%  # select 
+  # age groups for females of childbearing age only: 10-49
+  filter(year != 1) %>% # filter out unnecessary estimate from April 2020 
+  mutate(
+    Name = str_extract_all(county, "(?<=^).*(?=\\s\\bCounty)"), # clean up county name
+    year = if_else(year == 2, 2020, 2021), # assign right year
+    GEOID = str_c(STATE, COUNTY)) %>% # combine STATE, YEAR FOR GEOID 
+  filter(year == 2021) %>% 
+  pivot_longer(cols = c(3:7), names_to = NULL, values_to = "cba_pop") %>% 
+  group_by(Name, year, GEOID) %>% 
+  summarise(cba_age = sum(cba_pop)) %>%  # add populations for age groups only
+  select(year, GEOID, Name, cba_age) %>% 
+  ungroup() %>% 
+  select(-year)
 #
 # check for NA's
 sum(is.na( pop_1)) # returns 0
 sum(is.na( pop_2)) # returns 0
+sum(is.na( pop_3)) # returns 0
 
-# add fem_rte column for percent of population 20-34-years old; remove year
+# join pop 1-3 and add fem_rte column for percent of population 20-34-years old; remove year
 pop <- left_join(pop_1, pop_2, by = c("Name", "GEOID")) %>% 
-  mutate(fem_rte = round(fem_pop/all_age,2)*1000) %>% 
-  select(-year)
+  select(-year) 
+
+pop <- full_join(pop, pop_3, by = c("Name", "GEOID")) %>%
+  mutate(fem_rte = round(fem_pop/all_age,2)*1000)
+
 
 sum(is.na(pop$fem_rte)) # 0
 
 # import 2021 abortion totals
 ab <- read_csv("Exported_Data/2021_abortion_count.csv")
 
-sum(is.na(ab$Count))
+sum(is.na(ab$Count)) # 0
 
 # convert ab$name to list from character
 ab$Name <- as.list(ab$Name)
@@ -111,13 +133,13 @@ ab$Name <- as.list(ab$Name)
 
 # create new dataframe and calculate rate
 pop_ab <- left_join(pop, ab, by = c("Name" = "Name")) %>%
-  mutate(rate = round(1000*(Count/fem_pop),1)) 
+  mutate(rate = round(1000*(Count/cba_age),1)) 
 
 anyNA(pop_ab) # FALSE
 
 
 #clean up 
-rm(pop, pop_1, pop_2, pop_data, ab)
+rm(pop, pop_1, pop_2, pop_3, pop_data, ab)
 
 # add geometry for mapping
 # import county geometry for mapping
@@ -139,7 +161,7 @@ pop_ab <- st_sf(pop_ab)
 
 #IQR for rate and fem_rte
 pop_ab_r_iqr <- IQR(pop_ab$rate) 
-pop_ab_r_iqr # 5.025
+pop_ab_r_iqr # 2
 pop_ab_f_iqr <- IQR(pop_ab$fem_rte) 
 pop_ab_f_iqr # 20
 
@@ -157,7 +179,7 @@ ggplot(pop_ab)+
 pop_ab  %>% 
   filter(rate >= quantile(pop_ab$rate)[2] - (pop_ab_r_iqr*1.5)) %>% 
   filter(rate <= quantile(pop_ab$rate)[3] + (pop_ab_r_iqr*1.5)) %>% 
-  nrow() # 90
+  nrow() # 91
 
 # look at rate distribution of filtered data; outliers in green
 ggplot()+
@@ -192,10 +214,10 @@ ggplot()+
 # jenks breaks with outliers:
 bi_class_breaks(pop_ab, fem_rte, rate, "jenks", clean_levels = T, split = F)
 # $bi_x
-# [1] "13-18" "18-23" "23-31"
+# [1]  "130-180" "180-230" "230-310"
 # 
 # $bi_y
-# [1] "0-5.7"   "5.7-15"  "15-28.4"
+# [1] "0-2.2"  "2.2-5"  "5-12.1"
 
 # jenks breaks without outliers:
 bi_class_breaks(pop_ab %>% 
@@ -206,10 +228,10 @@ bi_class_breaks(pop_ab %>%
                 fem_rte, rate, "jenks", clean_levels = T, split = F)
 
 # $bi_x
-# [1] "13-16" "16-18" "18-23"
+# [1] "155-165" "165-175"
 # 
 # $bi_y
-# [1] "0-4.4"    "4.4-8.3"  "8.3-13.8"
+# [1] "0-1.5"   "1.5-2.8" "2.8-4.1"
 
 # looks like the option without outliers is better. Compare maps.
 
@@ -260,11 +282,14 @@ pop_ab_f <- bi_class(pop_ab %>% filter(rate >= quantile(pop_ab$rate)[2] - (pop_a
 # use anti-join to create dataframe of the columns that were filtered out and then 
 # use case_when to create bi_class rating using breaks identified above
 
+# generate breaks
+# bi_class_breaks(pop_ab_f, x = fem_rte, y = rate, style = "jenks", dim = 3)
+
 # $bi_x
-# [1] "13-16" "16-18" "18-23"
+# [1] "130-160" "160-180" "180-230"
 # 
 # $bi_y
-# [1] "0-4.4"    "4.4-8.3"  "8.3-13.8"
+# [1] "0-1.7" "1.7-3.2" "3.2-5" 
 
 
 pop_ab_f$geometry <- NULL
@@ -272,13 +297,13 @@ pop_ab$geometry <- NULL
 
 ol <- anti_join(pop_ab, pop_ab_f) %>% 
   mutate(bi_class = case_when(
-    fem_rte < 16 ~ "1-",
-    fem_rte %in% 16:18 ~ "2-",
-    fem_rte > 18 ~ "3-"))%>% 
+    fem_rte < 160 ~ "1-",
+    fem_rte %in% 160:180 ~ "2-",
+    fem_rte > 180 ~ "3-"))%>% 
   mutate(bi_class = case_when(
-    rate < 4.4 ~ paste0(bi_class,"1"),
-    rate > 4.4 & rate < 8.3 ~ paste0(bi_class, "2"),
-    rate > 8.3 ~ paste0(bi_class, "3")))
+    rate < 1.7 ~ paste0(bi_class,"1"),
+    rate > 3.2 & rate < 8.3 ~ paste0(bi_class, "2"),
+    rate > 3.3 ~ paste0(bi_class, "3")))
 
 # join ol (outlier) dataframe to dataframe with outliers removed
 pop_ab <- full_join(pop_ab_f, ol)
@@ -366,7 +391,7 @@ hl_y <- hl[2]
 
 # high high
 
-hh <- pop_ab %>% filter(bi_class == "3-3") %>% slice(5) %>%  
+hh <- pop_ab %>% filter(bi_class == "3-3") %>% slice(2) %>%  
   # use slice adjust county as needed
   st_centroid(geometry) %>% select(geometry) 
 
@@ -374,7 +399,6 @@ hh <- do.call(rbind, st_geometry(hh))
 
 hh_x <- hh[1]
 hh_y <- hh[2]
-
 
 map2 <- 
   ggplot() +
@@ -424,12 +448,12 @@ geom_curve(
       xend = hl_x+.25,
       y = hl_y*1.015,
       yend = hl_y),
-    curvature = -.3,
+    curvature = -.2, #-.3
     linewidth = .5,
     color = "#6F7378",
     arrow = arrow(
       length = unit(.2, "cm")))+
-  # low abortion low income county text
+  # low abortion low  20-34 text
   annotate("text", hl_x*.987, hl_y*1.022,
            colour = "#6F7378",
            size = 3.15,
@@ -440,7 +464,7 @@ geom_curve(
   #high high curve and label
   geom_curve(
     aes(
-      x = hh_x+.8,
+      x = hh_x+.92, #.8
       xend = hh_x+.25,
       y = hh_y,
       yend = hh_y),
@@ -450,7 +474,7 @@ geom_curve(
     arrow = arrow(
       length = unit(.2, "cm")))+
   # high abortion high 20-34 county text
-  annotate("text", hh_x+.88, 
+  annotate("text", hh_x+.97, #.88
            hh_y,
            colour = "#6F7378",
            size = 3.15,
@@ -474,27 +498,18 @@ geom_curve(
            lineheight = .9,
            hjust=0
   )+
-  theme_classic()+
+  t_theme()+
   theme(
+    panel.grid.major.y = element_blank(),
+    #panel.grid.major.y = element_blank(),
+    panel.grid.major.x = element_blank(), 
     plot.background = element_rect(fill=panel_c, color = panel_c),
     panel.background = element_rect(fill=panel_c, color = panel_c),
     axis.text = element_blank(),
-    axis.title = element_blank(),
+    axis.title.y = element_blank(),
+    axis.title.x = element_blank(),
     axis.line = element_blank(),
     axis.ticks = element_blank(),
-    plot.title = element_textbox_simple(family = "serif",
-                                        size = 14, lineheight = 1, color = "gray30",
-                                        margin = unit(c(0, 0, 8, 0), "pt")),
-    plot.subtitle = element_textbox_simple(family = "sans", size = 11,
-                                           color = "gray40", 
-                                           margin = unit(c(6, 0, 0, 0), "pt")),
-    plot.caption = #element_markdown(color = "gray40", size = 7),
-      element_textbox_simple(family = "sans", size = 7,
-                             color = "gray40",
-                             halign = 1,
-                             lineheight = 1.2
-      ),
-    plot.title.position = "panel",
     plot.margin = margin(0, .5, 0, .5, unit = "cm")
   )+
   labs(
@@ -514,202 +529,14 @@ geom_curve(
 
 finalPlot2 <- ggdraw() +
   draw_plot(map2, x =0, y= 0.015, width = 1, height = 1) +
-  draw_plot(legend, x= 0.71, y = .122, width = 0.22, height = 0.22)+
+  draw_plot(legend, x= 0.74, y = .105, width = 0.22, height = 0.22)+ 
   theme(
     plot.background = element_rect(fill = panel_c, color = panel_c)
   )
 
 
 
-ggsave("Plots/svg/biv_age_rate_05.svg", plot = finalPlot2,
+ggsave("Plots/svg/biv_age_rate_05_20230621.svg", plot = finalPlot2,
        height = 6.35, width = 5.4, unit = "in")
 
-# alternate plot ####
-
-# create x and y label coordinates ####
-# low low classification
-ll <- pop_ab %>% filter(bi_class == "1-1") %>% slice(6) %>%  
-  # use slice adjust county as needed
-  st_centroid(geometry) %>% select(geometry) 
-
-ll <- do.call(rbind, st_geometry(ll))
-
-ll_x <- ll[1] 
-ll_y <- ll[2]
-
-# low high 
-lh <- pop_ab %>% filter(bi_class == "1-3") %>% slice(1) %>%  
-  # use slice adjust county as needed
-  st_centroid(geometry) %>% select(geometry) 
-
-lh <- do.call(rbind, st_geometry(lh))
-
-lh_x <- lh[1]
-lh_y <- lh[2]
-
-# 
-
-# high low
-
-hl <- pop_ab %>% filter(bi_class == "3-1") %>% slice(1) %>%  
-  # use slice adjust county as needed
-  st_centroid(geometry) %>% select(geometry) 
-
-hl <- do.call(rbind, st_geometry(hl))
-
-hl_x <- hl[1]
-hl_y <- hl[2]
-
-# high high
-
-hh <- pop_ab %>% filter(bi_class == "3-3") %>% slice(9) %>%  
-  # use slice adjust county as needed
-  st_centroid(geometry) %>% select(geometry) 
-
-hh <- do.call(rbind, st_geometry(hh))
-
-hh_x <- hh[1]
-hh_y <- hh[2]
-
-
-# plot ####
-map <- 
-  ggplot() +
-  geom_sf(data = pop_ab, mapping = aes(fill = bi_class), color = "white", size = 0.1, show.legend = FALSE) +
-  bi_scale_fill(pal = "DkCyan", dim = 3)+
-  ylim(37.85,41.75)+
-  #xlim(88.8,83.75)+
-  # low abortion low income county curve ####
-geom_curve(
-  aes(
-    x = ll_x/.992,
-    xend = ll_x-.2,
-    y = ll_y*1.000,
-    yend = ll_y),
-  curvature = .2,
-  linewidth = .5,
-  color = "#6F7378",
-  arrow = arrow(length = unit(.2, "cm")))+ #low abortion low income county text
-  annotate("text", ll_x/.984, ll_y*1.008,
-           colour = "#6F7378",
-           size = 3.15,
-           label = "Light gray counties:\nlow abortion, few\n20 to 34 year-olds",
-           lineheight = .9,
-           hjust=0)+
-  # low high curve and label
-  geom_curve(
-    aes(
-      x = lh_x*.978,
-      xend = lh_x,
-      y = lh_y/1.009,
-      yend = lh_y),
-    curvature = 0,
-    linewidth = .55,
-    color = "#6F7378",
-    arrow = arrow(length = unit(.2, "cm")))+
-  # low abortion low income county text
-  annotate("text", lh_x*.981, lh_y/1.015,
-           colour = "#6F7378",
-           size = 3.15,
-           label = "Green counties:\nhigh abortion, few\n20 to 34 year-olds",
-           lineheight = .9,
-           hjust=0
-  )+
-  # high low curve and label
-  geom_curve(
-    aes(
-      x = hl_x*.985,
-      xend = hl_x+.25,
-      y = hl_y*1.015,
-      yend = hl_y),
-    curvature = -.3,
-    linewidth = .5,
-    color = "#6F7378",
-    arrow = arrow(
-      length = unit(.2, "cm")))+
-  # low abortion low income county text
-  annotate("text", hl_x*.987, hl_y*1.021,
-           colour = "#6F7378",
-           size = 3.15,
-           label = "Blue counties:\nlow abortion, many\n20 to 34 year-olds",
-           lineheight = .9,
-           hjust=0
-  )+
-  #high high curve and label
-  geom_curve(
-    aes(
-      x = hh_x/.989,
-      xend = hh_x-.2,
-      y = hh_y*.992,
-      yend = hh_y),
-    curvature = -.3,
-    linewidth = .5,
-    color = "#6F7378",
-    arrow = arrow(
-      length = unit(.2, "cm")))+
-  # high abortion high 20-34 county text
-  annotate("text", hh_x/.979, 
-           hh_y*.987,
-           colour = "#6F7378",
-           size = 3.15,
-           label = "Dark green counties:\nhigh abortion, many\n20 to 34 year-olds",
-           lineheight = .9,
-           hjust=0
-  )+
-  # blank annotation to extend right margin (xlim removes annotations and curves)
-  annotate("text", hh_x/1.045, hh_y*1.013,
-           colour = "#6F7378",
-           size = 3.15,
-           label = "",
-           lineheight = .9,
-           hjust=0
-  )+
-  theme_classic()+
-  theme(
-    plot.background = element_rect(fill=panel_c, color = panel_c),
-    panel.background = element_rect(fill=panel_c, color = panel_c),
-    axis.text = element_blank(),
-    axis.title = element_blank(),
-    axis.line = element_blank(),
-    axis.ticks = element_blank(),
-    plot.title = element_textbox_simple(family = "serif",
-                                        size = 14, lineheight = 1, color = "gray30",
-                                        margin = unit(c(0, 0, 6, 0), "pt")),
-    plot.subtitle = element_textbox_simple(family = "sans", size = 11,
-                                           color = "gray40"),
-    plot.caption = #element_markdown(color = "gray40", size = 7),
-      element_textbox_simple(family = "sans", size = 7,
-                             color = "gray40",
-                             halign = 1,
-                             lineheight = 1.2
-      ),
-    plot.title.position = "panel",
-    plot.margin = margin(0, .5, 0, .5, unit = "cm")
-  )+
-  labs(
-    subtitle = paste0("Women in this age range are ", 
-                      round(sum(pop_ab$fem_pop)/sum(pop_ab$all_age)*100),
-                      "% of the female population and receive ",
-                      round(ab_age %>% filter(num %in% 4:6 & year == 2021) %>% summarise(sum(pct))),
-                      "% of all abortions."),
-    title = paste0(broman::spell_out(pop_ab %>% filter(bi_class == '3-3') %>% nrow(), capitalize = TRUE),
-                   " Indiana counties have a high rate of abortion and of women 
-               between 20 and 34 years-old; ",
-                   broman::spell_out(pop_ab %>% filter(bi_class == '1-1') %>% nrow(), capitalize = TRUE),
-                   " counties have low rates of both."),
-    caption = paste0("<br>**Data:** 'www.in.gov/health/vital-records/vital-statistics/terminated-pregnancy-reports'
-   'www2.census.gov/programs-surveys/popest/datasets/2020-2021/counties/asrh/cc-est2021-agesex-18.csv'
-   \n**Graphic:** Ted Schurter 2023"))
-
-finalPlot <- ggdraw() +
-  draw_plot(map, x =0, y= 0.015, width = 1, height = 1) +
-  draw_plot(legend, x= 0.745, y = .1119, width = 0.22, height = 0.22)+
-  theme(
-    plot.background = element_rect(fill = panel_c, color = panel_c),
-    plot.margin = margin(0,0,0,0)
-  )
-
-
-# ggsave("Plots/svg/biv_age_rate.svg", plot = finalPlot,
-#        height = 7, width = 6, unit = "in")
 
