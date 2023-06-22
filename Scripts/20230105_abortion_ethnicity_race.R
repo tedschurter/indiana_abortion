@@ -437,7 +437,7 @@ The <span style = 'color:",race_colors$Black,";'>Black</span> abortion rate is h
 more than three times the state average."),
     title = paste0(
       "The abortion rate for women of childbearing age varies by race. From 2014 to 2021 the average rate for all races was ",
-      both_pop %>% summarise(round(sum(count)/sum(total),4))*1000," per 1,000 of childbearing age."),
+      both_pop %>% summarise(round(sum(count)/sum(total),4))*1000," per 1,000  women of childbearing age."),
     caption = "**Abortion Data:** 'www.in.gov/health/vital-records/vital-statistics/terminated-pregnancy-reports/'<br>**Population Data:** US Census Bureau<br>
     **Graphic:** Ted Schurter 2023")+
   
