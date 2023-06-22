@@ -383,11 +383,14 @@ write_csv(both_pop, file = "Exported_Data/both_pop.csv")
 
 
 both_pop %>% 
-  # convert percent to rate per 10000
   mutate(race_pct = 10*pct_race) %>% 
   ggplot()+
+  t_theme()+
+  # geom_segment(aes(x = min(race_pct), xend = max(race_pct),
+  #                  y = 50, yend = 50),
+  #              color  = "gray70", linewidth = .2, linetype = "dotted")+  
   geom_point(
-    aes(10*pct_race, cba_pct, color = race, size = pct_all),
+    aes(cba_pct, 10*pct_race, color = race, size = pct_all),
     show.legend=F)+
   geom_point(data=both_pop,
              aes(x = 10*round(100*sum(both_pop$count)/sum(both_pop$total),1),
@@ -395,109 +398,104 @@ both_pop %>%
              size = 3, shape = 3, color = "dark gray", show.legend = F)+
   scale_color_manual(values = race_colors)+
   scale_size_continuous(range = 3.25*c(1,6))+
-  theme_minimal()+
-  scale_y_continuous(name = "Percent of <br>population of <br>childbearing age",
-                     limits = c(48,67),
+  #t_theme()+
+  scale_x_continuous(name = "Percent of <br>population of <br>childbearing age",
+                     limits = c(48, 70),
                      breaks = c(40,50, 60, 70),
                      minor_breaks = c(55, 65),
                      labels = c("40","50%", "60%", "70%"),
                      expansion(mult = c(.20, .20))
   )+
-  scale_x_continuous(name = "<br>Rate of abortion per 1,000 women of childbearing age",
-                     limits = 10*c(.125, 1.35),
-                     breaks = 10*c(.25, .50, .75, 1, 1.25, 1.5),
-                     labels = c("2.5", "5", "7.5", "10", "12.5", "15"),
+  scale_y_continuous(name = "<br>Rate of<br>abortion<br>per 1,000<br>women of<br>childbearing<br>age",
+                     limits = 10*c(.125, 1.3),
+                     breaks = 10*c(.25, .50, .75, 1, 1.25),
+                     labels = c("2.5", "5", "7.5", "10", "12.5"),
                      #expand = expansion(mult = c(0.02, 0.02))
   )+
   theme(
-    plot.background  = element_rect(color = NA, fill  = panel_c),
+    panel.grid.major.y = element_line(color = "gray80", size = .25, linetype = "dotted"),
+    #panel.grid.major.y = element_blank(),
+    panel.grid.major.x = element_blank(),
+    axis.line = element_line(color = "gray80", size = .25),
+    plot.background  = element_rect(color = panel_c, fill  = panel_c, size = .35),
     panel.background = element_rect(color = NA, fill = panel_c),
-    axis.title.x  = element_markdown(size = 9, color = "dark gray", family = "sans",
+    axis.title.x  = element_markdown(size = rel(.85), color = "gray55", family = "sans",
                                      hjust = 0),
-    axis.title.y = element_markdown(size = 9, color = "dark gray", family = "sans",
-                                    angle = 0, hjust = 0),
+    axis.title.y = element_markdown(size = rel(.8), color = "gray55", family = "sans",
+                                    angle = 0, hjust = 1, vjust = .35),
     axis.text =  element_markdown(size = 9, color = "dark gray"),
-    plot.title = element_textbox_simple(
-      size = 18, lineheight = 1, family = "serif", padding = margin(0, 0, 1, 0)),
-    plot.subtitle = element_textbox_simple(
-      size = 11, lineheight = 1, family = "sans", padding = margin(0, 0, 1, 0)),
+    # plot.title = element_textbox_simple(
+    #   size = 18, lineheight = 1, family = "serif", padding = margin(0, 0, 1, 0)),
+    # plot.subtitle = element_textbox_simple(
+    #   size = 11, lineheight = 1, family = "sans", padding = margin(0, 0, 1, 0)),
     plot.title.position = "plot",
-    plot.margin = unit(c(1, 1, 1, 1), "cm"),
-    plot.caption = element_text(hjust = 1),
-    panel.grid = element_line(colour = "#f6f6f5"))+
+    plot.margin = unit(c(.5, .5, .5, .5), "cm"))+
   labs(
+    subtitle = paste0("<span style = 'color:",race_colors$White,";'>White</span> women, the largest racial group, get more abortions than any other group but their rate of abortions, ", 
+                      round(both_pop$race_pct[both_pop$race == "White"],2),", is below the state average.
+The <span style = 'color:",race_colors$Black,";'>Black</span> abortion rate is highest, 
+more than three times the state average."),
     title = paste0(
-      "The <span style = 'color:",race_colors$Black,";'>Black</span> abortion rate is double the second highest race and three times higher than the state average."),
-    # paste0("The abortion rate for women of childbearing age varies by race. From 2014 to 2021 the average rate was ",
-    #                both_pop %>% summarise(round(sum(count)/sum(total),4))*1000," per 1,000."),
-    subtitle = paste0(
-      "<br>The abortion rate for women of childbearing age varies by race. From 2014 to 2021 the average rate for all races was ",
-      both_pop %>% summarise(round(sum(count)/sum(total),4))*1000," per 1,000. <br>"),
-    caption = "<br>This is where the caption goes")+
+      "The abortion rate for women of childbearing age varies by race. From 2014 to 2021 the average rate for all races was ",
+      both_pop %>% summarise(round(sum(count)/sum(total),4))*1000," per 1,000 of childbearing age."),
+    caption = "**Abortion Data:** 'www.in.gov/health/vital-records/vital-statistics/terminated-pregnancy-reports/'<br>**Population Data:** US Census Bureau<br>
+    **Graphic:** Ted Schurter 2023")+
   
-# annotations ####
+  # annotations ####
 # annotation for white
 annotate("text_box", 
-         x = 10*both_pop$pct_race[both_pop$race=="White"], 
-         y = both_pop$cba_pct[both_pop$race=="White"],
+         y = 10*both_pop$pct_race[both_pop$race=="White"], 
+         x = both_pop$cba_pct[both_pop$race=="White"],
          label = paste0(
            "<span style = 'color:",race_colors$White,";'>Whites, </span>the largest racial group, have the lowest percentage
-        of childbearing age women and the third lowest abortion rate."), 
+        of childbearing age women and the fourth-lowest abortion rate."), 
          color = "black", lineheight = 1, size = 4,
          width = unit(3.2, "inch"), hjust = .1, vjust = -.5, box.color=panel_c, 
          fill = panel_c)+
   # annotation for asian
   annotate("text_box", 
-           x = 10*both_pop$pct_race[both_pop$race=="Asian"], 
-           y = both_pop$cba_pct[both_pop$race=="Asian"],
+           y = 10*both_pop$pct_race[both_pop$race=="Asian"], 
+           x = both_pop$cba_pct[both_pop$race=="Asian"],
            label = paste0(
-             "<span style = 'color:",race_colors$Asian,";'>Asians, </span>the third largest racial group, have the highest percentage
-           of childbearing age women and the third highest abortion rate."), 
+             "<span style = 'color:",race_colors$Asian,";'>Asians, </span>the third-largest racial group, have the highest percentage
+           of childbearing age women and the third-highest abortion rate."), 
            color = "black", lineheight = 1, size = 3.75,
-           width = unit(3, "inch"), hjust = .9, vjust = 1.2, box.color=panel_c, 
+           width = unit(3, "inch"), hjust = .5, vjust = 1.2, box.color=panel_c, 
            fill = panel_c)+
   # annotation for Black
   annotate("text_box", 
-           x = 10*both_pop$pct_race[both_pop$race=="Black"], 
-           y = both_pop$cba_pct[both_pop$race=="Black"],
+           y = 10*both_pop$pct_race[both_pop$race=="Black"], 
+           x = both_pop$cba_pct[both_pop$race=="Black"],
            label = paste0(
-             "<span style = 'color:#01665e;'>Blacks, </span> the second largest racial group, have the second lowest percentage
+             "<span style = 'color:#01665e;'>Blacks, </span> the second-largest racial group, have the second-lowest percentage
          of childbearing age women but the highest abortion rate."), 
            color = "black",lineheight = 1, size = 4.5,
-           width = unit(3, "inch"), hjust = .85, vjust = 1.2, box.color=panel_c, 
+           width = unit(3, "inch"), hjust = .05, vjust = 1.2, box.color=panel_c, 
            fill = panel_c)+
   # annotation for Native Hawaiian and Other Pacific Islander
   annotate("text_box", 
-           x = 10*both_pop$pct_race[both_pop$race=="Native Hawaiian and Other Pacific Islander"], 
-           y = both_pop$cba_pct[both_pop$race=="Native Hawaiian and Other Pacific Islander"],
+           y = 10*both_pop$pct_race[both_pop$race=="Native Hawaiian and Other Pacific Islander"], 
+           x = both_pop$cba_pct[both_pop$race=="Native Hawaiian and Other Pacific Islander"],
            label = "Native Hawaiian and Other Pacific Islander",
            color = "dark gray",lineheight = 1, size = 3,
            width = unit(2.25, "inch"), hjust = -.08, vjust = .5, box.color=panel_c, 
            fill = panel_c)+
   # annotation for American Indian and Alaska Native
   annotate("text_box", 
-           x = 10*both_pop$pct_race[both_pop$race=="American Indian and Alaska Native"], 
-           y = both_pop$cba_pct[both_pop$race=="American Indian and Alaska Native"],
+           y = 10*both_pop$pct_race[both_pop$race=="American Indian and Alaska Native"], 
+           x = both_pop$cba_pct[both_pop$race=="American Indian and Alaska Native"],
            label = "American Indian and Alaska Native",
            color = "dark gray",lineheight = 1, size = 3,
-           width = unit(2.25, "inch"), hjust = -.08, vjust = .5, box.color=panel_c, 
+           width = unit(2.25, "inch"), hjust = .5, vjust = -.4, box.color=panel_c, 
            fill = panel_c)+
   # annotation for Multiple Races
   annotate("text_box", 
-           x = 10*both_pop$pct_race[both_pop$race=="Multiple Races"], 
-           y = both_pop$cba_pct[both_pop$race =="Multiple Races"],
+           y = 10*both_pop$pct_race[both_pop$race=="Multiple Races"], 
+           x = both_pop$cba_pct[both_pop$race =="Multiple Races"],
            label = "Multiple Races",
            color = "dark gray", lineheight = 1, size = 3,
-           width = unit(2.25, "inch"), hjust = -.08, vjust = .4, box.color=panel_c, 
-           fill = panel_c) +
-  # annotation for state average
-  annotate("text_box", 
-           x = 10*round(100*sum(both_pop$count)/sum(both_pop$total),1), 
-           y = round(100*sum(both_pop$total)/sum(both_pop$avg),1),
-           label = "Indiana average",
-           color = "dark gray",lineheight = 1, size = 3,
-           width = unit(2.25, "inch"), hjust = -.03, vjust = 1.3, box.color=panel_c, 
-           fill = panel_c) 
+           width = unit(2.25, "inch"), hjust = -.08, vjust = .65, box.color=panel_c, 
+           fill = panel_c)
 # save ####
 ggsave(filename = paste0("Plots/svg/", Sys.Date(),"_cba_ab_pct_scatter_rate.svg"),
        width = 3500, height = 1800, units = "px",
