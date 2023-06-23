@@ -1,7 +1,7 @@
 ---
 title: "<span style='font-size: 27px'>Analysis of Indiana Terminated Pregnancy Reports 2014 to 2021 </span>"
 author: "<span style = 'font-size: 16px'>by: Ted Schurter </span>"
-date:   "<span style = 'font-size: 13px'>June 22, 2023 </span>"
+date:   "<span style = 'font-size: 13px'>June 23, 2023 </span>"
 output:
   html_document:
     
@@ -275,7 +275,7 @@ subtitle <- paste0(
 ## {.tabset}
 
 ### Chart
-```{r proc_plot, fig.width=10}
+```{r proc_plot, fig.width=10, fig.alt = paste0("Line graph showing medical, surgical and all abortions in Indiana from 2014 to 2021 where all abortions increased at ", round(sum(med_cng$pct_cng, na.rm=T)/length(proc_tot$year),2),"% and medication abortions grew ", round(sum(med_cng$pct_cng, na.rm=T)/length(proc_tot$year),2),"%.")}
 ggplot()+
   # 2014:2018 medical data
   geom_line(data=proc_14_18 %>% 
@@ -425,7 +425,8 @@ t_theme()+
   labs(
     title = pct_title,
     subtitle  = subtitle,
-    caption = "<br>**Abortion Data:** 'www.in.gov/health/vital-records/vital-statistics/terminated-pregnancy-reports/'<br>**Graphic:** Ted Schurter 2023")
+    caption = "<br>**Abortion Data:** 'www.in.gov/health/vital-records/vital-statistics/terminated-pregnancy-reports/'<br>**Graphic:** Ted Schurter 2023",
+    alt = paste0("Line graph showing medical, surgical and all abortions in Indiana from 2014 to 2021 where all abortions increased at", round(sum(med_cng$pct_cng, na.rm=T)/length(proc_tot$year),2),"% and medication abortions grew", round(sum(med_cng$pct_cng, na.rm=T)/length(proc_tot$year),2),"%."))
 
 ```
 
@@ -668,7 +669,7 @@ rx_lab <- paste0(
 
 ### Chart
 
-```{r create_plot, fig.width=10, fig.height=6}
+```{r create_plot, fig.width=10, fig.height=6, fig.alt= "A bar chart of abortion procedure by gestational age from 2014 to 2017 showing 99% of all abortions happen by 13 weeks and medication abortions were about 30% of all."}
 # assign plot to p 
 
 ggplot(gp)+
@@ -730,8 +731,9 @@ theme(
   labs(
     title = title,
     subtitle  = subtitle,
-    caption = "**Abortion Data:** 'www.in.gov/health/vital-records/vital-statistics/terminated-pregnancy-reports/'<br>
-    **Graphic:** Ted Schurter 2023"
+    caption = "**Abortion Data:**2014:2017 'www.in.gov/health/vital-records/vital-statistics/terminated-pregnancy-reports/'<br>
+    **Graphic:** Ted Schurter 2023",
+    alt = "A bar chart of abortion procedure by gestational age from 2014 to 2017 showing 99% of all abortions happen by 13 weeks weeks and medication abortions were about 30% of all."
   ) +
   # annotations and markers above 0 on x axis ####
 # rx abortion label
@@ -969,7 +971,7 @@ m_lab_c <- c("January"    = "gray70",
 
 ### Chart
 
-```{r, calculate percents, plot pct cng mean, fig.width=10, fig.height=5.3}
+```{r, calculate percents, plot pct cng mean, fig.width=10, fig.height=5.3, fig.alt="Line graph of Indiana resident monthly abortions totals 2014 to 2021 showing their departure from 8-year monthly average where September had the largest swing, changing 30% from 2019 to 2020."}
 # what is the percent above or below the average monthly total for each month?
 t <-  mnth %>% 
   ungroup() %>% 
@@ -1118,7 +1120,8 @@ ggplot()+ theme_classic()+
        subtitle = "Each line shows how far a single month's abortion totals deviate
   from the month's multi-year average.",      
        caption = "<br>**Data:** 'www.in.gov/health/vital-records/vital-statistics/terminated-pregnancy-reports'<br>
-  **Graphic:** Ted Schurter 2023")  
+  **Graphic:** Ted Schurter 2023",
+  alt = "Line graph of Indiana resident monthly abortions totals 2014 to 2021 showing their departure from 8-year monthly average where September had the largest swing, changing 30% from 2019 to 2020.")  
 ```
 
 ### Data
@@ -1153,7 +1156,7 @@ datatable(colnames = c("Year", "Month", "Resident\nabortions", "Non-resident\nab
 #### The variation is apparent when contrasting a month's totals to its eight-year average or to other years. 
 
 
-```{r faceted month by year, fig.width=10, fig.height=5.3}
+```{r faceted month by year, fig.width=10, fig.height=5.3, fig.alt = "Small multiple line chart showing Indiana resident monthly abortion totals, average monthly totals, and average annual monthly totals 2014 to 2021"}
 # set order of months
 mnth$month <- factor(mnth$month, levels = c(
   "January", "February", "March", "April", "May", "June", "July","August",
@@ -1256,7 +1259,8 @@ mnth %>% group_by(month) %>%
                          "; the average annual total is ",
                          prettyNum(round(mnth %>% group_by(year) %>% summarise(tot = sum(res)) %>% summarise(mean(tot))), big.mark = ",", scientific = FALSE),"."),
        caption = "<br>**Data:** 'www.in.gov/health/vital-records/vital-statistics/terminated-pregnancy-reports'<br>
-  **Graphic:** Ted Schurter 2023")
+  **Graphic:** Ted Schurter 2023",
+  alt = "Small multiple line chart showing Indiana resident monthly abortion totals, average monthly totals, and average annual monthly totals 2014 to 2021")
 ```
 
 ---
@@ -1299,7 +1303,7 @@ sf_per_cap <- sf_per_cap %>% select(c("Year"= "year", "County" = "Name", "Female
 
 ### Map
    
-```{r fig.width = 8, fig.height=5, fig.align='center' }
+```{r fig.width = 8, fig.height=5, fig.align='center', fig.alt = "Choropleth map of abortion rate by Indiana county showing Marion County rate is at least 4 times higher than other counties."}
 
 bins <- c(0,1,2,3,4,5,6,7,8,12) # set custom bins to eliminate bins w/no values
 
@@ -1435,7 +1439,7 @@ y_labs <- c(
 
 ### Chart
 
-```{r abortion by mother age, year, fig.width=10}
+```{r abortion by mother age, year, fig.width=10, fig.alt="Heat map of Indiana abortions by age 2014 to 2021 showing 20-34 year-old women get 77% of all abortions."}
 ggplot(ab_age) + 
   geom_tile(aes(as.factor(year), age, fill = pct, width = 1),
             color = NA)+
@@ -1455,7 +1459,8 @@ ggplot(ab_age) +
        subtitle = subtitle,
        fill = "Percent of\nabortions",
        caption = "<br>**Data:** 'www.in.gov/health/vital-records/vital-statistics/terminated-pregnancy-reports'<br>
-  **Graphic:** Ted Schurter 2023")+
+  **Graphic:** Ted Schurter 2023",
+  alt = "Heat map of Indiana abortions by age 2014 to 2021 showing 20-34 year-old women get 77% of all abortions.")+
   guides(fill=guide_colourbar(title.position = "bottom"))+ #.85
   # line marking 14 and under 2019
   geom_segment(aes(
@@ -1815,7 +1820,7 @@ hh_y <- hh[2]
 
 
 
-```{r create map}
+```{r create map, fig.alt="Bivariate map showing rates of 20 to 34 year-old women and the rate of abortion in 2021."}
 map2 <- 
   ggplot() +
   geom_sf(data = pop_ab, mapping = aes(fill = bi_class), color = "white", size = 0.1, show.legend = FALSE) +
@@ -1939,9 +1944,10 @@ geom_curve(
                between 20 and 34 years old; ",
                    broman::spell_out(pop_ab %>% filter(bi_class == '1-1') %>% nrow(), capitalize = TRUE),
                    " counties have low rates of both."),
-    caption = paste0("<br>**Data:** 'www.in.gov/health/vital-records/vital-statistics/terminated-pregnancy-reports'
+    caption = paste0("<br>**Data:**  'www.in.gov/health/vital-records/files/2021-ITOP-Report.pdf'
    'www2.census.gov/programs-surveys/popest/datasets/2020-2021/counties/asrh/cc-est2021-agesex-18.csv'
-   \n**Graphic:** Ted Schurter 2023"))
+   \n**Graphic:** Ted Schurter 2023",
+   alt = "Bivariate map showing rates of 20 to 34 year-old women and the rate of abortion in 2021."))
 
 finalPlot2 <- ggdraw() +
   draw_plot(map2, x =0, y= 0.015, width = 1, height = 1) +
@@ -1955,7 +1961,7 @@ finalPlot2 <- ggdraw() +
 
 ### Map
 
-```{r, fig biv map, fig.height = 7.5}
+```{r, fig biv map, fig.height = 7.5, fig.alt="Bivariate map showing rates of 20 to 34 year-old women and the rate of abortion in 2021."}
 finalPlot2
 ```
 
@@ -2042,7 +2048,7 @@ colnames(race_col) <- c("race", "color")
 
 ### Chart
 
-```{r race_plot, fig.width=10, fig.height=6}
+```{r race_plot, fig.width=10, fig.height=6, fig.alt="Scatterplot of percent of childbearing age women by race and the rate of abortion within that population showing white women are the largest population, get the most abortions and have a low rate; Black women are the second-largest group and have the highest rate."}
 both_pop %>% 
   mutate(race_pct = 10*pct_race) %>% 
   ggplot()+
@@ -2100,7 +2106,8 @@ more than three times the state average."),
       "The abortion rate for women of childbearing age varies by race. From 2014 to 2021 the average rate for all races was ",
       both_pop %>% summarise(round(sum(count)/sum(total),4))*1000," per 1,000 women of childbearing age."),
     caption = "**Abortion Data:** 'www.in.gov/health/vital-records/vital-statistics/terminated-pregnancy-reports/'<br>**Population Data:** US Census Bureau<br>
-    **Graphic:** Ted Schurter 2023")+
+    **Graphic:** Ted Schurter 2023",
+alt = "Scatterplot of percent of childbearing age women by race and the rate of abortion within that population showing white women are the largest population, get the most abortions and have a low rate; Black women are the second-largest group and have the highest rate.")+
   
   # annotations ####
 # annotation for white
@@ -2206,7 +2213,7 @@ ed <- read_csv("Exported_Data/ed_ab.csv")
 ## {.tabset}
 
 ### Chart
-```{r create line chart, fig.width=10, fig.height=5.75}
+```{r create line chart, fig.width=10, fig.height=5.75, fig.alt="Line chart of percent of abortion by education in Indiana from 2014 to 2021 showing women with a high school degree or GED and those with some college credit but no degree get the most abortions."}
 # create line chart ####
 
 # make dataframes for lines with and without color
@@ -2299,7 +2306,8 @@ ggplot()+
   )+
   labs(title = title,
        subtitle = subtitle,
-       caption = caption
+       caption = caption, 
+       alt = "Line chart of percent of abortion by education in Indiana from 2014 to 2021 showing women with a high school degree or GED and those with some college credit but no degree get the most abortions."
        )
   
 ```
@@ -2488,7 +2496,7 @@ caption <- "<br>**Data:** 'www.in.gov/health/vital-records/vital-statistics/term
 
 ### Chart 
 
-```{r provider plot, fig.width=10}
+```{r provider plot, fig.width=10, fig.alt="Line chart of count of abortion facility types (hospital or clinic) in Indiana from 2014 to 2021 showing the number of clinics is greater than hospitals every year."}
 
 ggplot()+
   geom_col(data = facility %>% filter(year != 2021),
@@ -2531,7 +2539,8 @@ ggplot()+
          paste0("The number of abortion<span style='color:",fac,"'> clinics</span> peaked in 2014
   but the number of <span style='color:",hosp,"'>hospitals</span> and the <span style= 
   'color:gray55'>total number</span> of facilities where abortions occurred peaked in 2021."),
-       caption = caption)
+       caption = caption, 
+  alt = "Line chart of count of abortion facility types (hospital or clinic) in Indiana from 2014 to 2021 showing the number of clinics is greater than hospitals every year.")
 ```
 
 ### Data
@@ -3022,12 +3031,13 @@ im <-
   <span style = 'color:",hosp,";'>1%</span> occured in a <span style = 
   'color:",hosp,";'>hospital</span>."),
        caption = "<br>**Data:** 'www.in.gov/health/vital-records/vital-statistics/terminated-pregnancy-reports'
-  <br>**Graphic:** Ted Schurter 2023"
+  <br>**Graphic:** Ted Schurter 2023",
+  alt = "Map showing location of abortion facilities in seven Indiana counties with circles showing percent of all abortions that occur in those facilities."
   )
 
 ```
 
-```{r prov loc map,  fig.height = 7 }
+```{r prov loc map,  fig.height = 7, fig.alt="Map showing location of abortion facilities in seven Indiana counties with circles showing percent of all abortions that occur in those facilities." }
 im
 ```
 
@@ -3058,7 +3068,7 @@ prov <- read_csv("Exported_Data/prov_ll.csv") %>% group_by(year) %>%
 #### `r prov %>% ungroup() %>% arrange(desc(tot_fac_pct)) %>% select(facility) %>% slice(1)` in `r prov %>% ungroup() %>% arrange(desc(tot_fac_pct)) %>% select(county) %>% slice(1)` County performed the most abortions in the state.
 
 
-```{r facility count by year, fig.width=10}
+```{r facility count by year, fig.width=10, fig.alt="Line chart of percent of abortions by clinics in Indiana from 2014 to 2021 showing clinics in Marion County performed most abortions in Indiana."}
 
 # reimport prov (sf data frame from above not suitable - can't easily loose geometry column for caluclations...)
 
@@ -3171,7 +3181,8 @@ ggplot()+
                "% of all abortions."),
        subtitle = "The number of clinics reached nine in 2014 before shrinking to
        six by 2016. A clinic opened in South Bend in 2019, raising the total to seven.",
-       caption = caption)
+       caption = caption,
+       alt = "Line chart of percent of abortions by clinics in Indiana from 2014 to 2021 showing clinics in Marion County performed most abortions in Indiana.")
 ```
 
 ---
@@ -3179,7 +3190,7 @@ ggplot()+
 #### `r prov %>% filter(type == "Hospital") %>% ungroup() %>% arrange(desc(tot_fac_pct)) %>% select(facility) %>% slice(1)` in `r prov %>% filter(type == "Hospital") %>% ungroup() %>% arrange(desc(tot_fac_pct)) %>% select(county) %>% slice(1)` County performed more abortions than any other Indiana hospital but only a  fractional percent of all abortions.
 
 
-```{r hospital count by year, fig.width=10}
+```{r, hospital count by year, fig.width=10, fig.alt="Line chart of percent of abortions in Indiana from 2014 to 2021 that occured in hospitals showing less than 1% of abortions occured in hospitals and Sidney & Lois Eskenazi Hospital accounted for 63% of them."}
 ggplot()+
   # lines for scale - 0, .5, 1%
   geom_segment(aes(x = 2014, xend = 2021,
@@ -3293,7 +3304,8 @@ ggplot()+
                          english(prov %>% ungroup() %>% filter(count_by_yr <= 1 & type == "Hospital") %>% distinct(facility) %>% 
                            select(facility) %>% nrow()),"</span> 
                          instances when hospitals performed a <span style = 'color:#756bb1;'>single</span> abortion in a year."),
-       caption = caption)
+       caption = caption,
+       alt = "Line chart of percent of abortions in Indiana that occured in hospitals by the hospitals showing less than 1% of abortions occured in hospitals and Sidney & Lois Eskenazi Hospital accounted for 63% of them.")
 ```
 
 ---
