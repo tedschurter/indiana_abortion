@@ -270,7 +270,7 @@ dx_lab <- paste(
 
 #
 post_22_wk_lab <- paste(
-  "<span style = 'color:",body_text,";'>After 22 weeks, abortion is legal only to 
+  "<span style = 'color:",body_text,";'>After 22 weeks (gestational age), abortion is legal only to 
   prevent serious health risk to, or save the life of, the mother; or if the fetus has 
   been diagnosed with a lethal fetal anomaly.</span>")
 
@@ -283,9 +283,9 @@ rx_lab <- paste(
 # 
 
 # plot ####
-p <- ggplot(gest)+
+p <- ggplot(gp)+
   theme_classic()+
-  geom_col(data=gest,
+  geom_col(data=gp,
            aes(x=as_factor(age), y=pct_all,
                fill=type, 
            ),
@@ -294,26 +294,27 @@ p <- ggplot(gest)+
                    breaks = NULL,
                    labels = NULL)+
   scale_y_continuous(name = "",
-                     breaks = c(-30,0,if_else(gest$pct_age_all>1,gest$pct_age_all,NULL), 100),
-                     labels = c("",paste(0,""),paste(if_else(gest$pct_age_all>1,gest$pct_age_all,NULL),"%"),"100%"))+
+                     breaks = c(-30,0,if_else(gp$pct_age_all>1,gp$pct_age_all,0), 100),
+                     labels = c("",paste(0,""),paste(if_else(gp$pct_age_all>1,gp$pct_age_all,0),"%"),"100%"))+
   scale_fill_manual(values = type_colors)+
-  theme_classic()+
+  t_theme()+
   # theme adjustments ####
 theme(
+  panel.grid.major.y = element_blank(),
+  #panel.grid.major.y = element_blank(),
+  panel.grid.major.x = element_blank(),
   axis.line.y = element_blank(),
   axis.line.x = element_blank(),
   axis.ticks.x = element_blank(),
   axis.ticks.y = element_blank(),
   panel.grid = element_blank(),
-  panel.background = element_rect(fill=panel_c),
-  plot.background = element_rect(fill = panel_c, 
-                                 color = "black",
-                                 size = .35),
+  panel.background = element_rect(fill = panel_c),
+  plot.background = element_rect(color = panel_c, fill  = panel_c, size = .35),
   axis.text.x = element_text(size  = 7,
-                             color = body_text,
+                             color = "gray55",
                              hjust = 0),
   axis.text.y = element_text(size  = 7,
-                             color = body_text),
+                             color = "gray55"),
   # strip.text.x = element_text(size = 8,
   #                             color = "dark gray"),
   axis.title.y = element_markdown(angle = 0,
@@ -325,22 +326,24 @@ theme(
                                   size  = 9,
                                   color = body_text,
                                   vjust = .5),
-  plot.title = (plot.title = element_textbox_simple(
-    lineheight = 1, padding = margin(0, .5, .5, 0),
-    family = "serif", size = 19
-  )),
-  plot.subtitle = element_textbox_simple(
-    size = 11, lineheight = 1, family = "sans", padding = margin(0, 0, 5, 0)),
+  # plot.title = (plot.title = element_textbox_simple(
+  #   lineheight = 1, padding = margin(0, 0, 1, 0),
+  #   family = "serif", size = 19
+  # )),
+  # plot.subtitle = element_textbox_simple(
+  #   size = 11, lineheight = 1, family = "sans", padding = margin(0, 0, 5, 0)),
   plot.title.position = "plot",
   plot.margin = unit(c(.5, .5, .5, .5), "cm"),
-  plot.caption = element_text(hjust = 0),
+  # plot.caption = element_textbox_simple(family = "sans", size = 7,
+  #                                         color = "gray40", halign = 1,
+  #                                         lineheight = 1.2),
   legend.position = "none"
 )+
   labs(
     title = title,
     subtitle  = subtitle,
-    caption = paste("panel_c",panel_c,"sc_c",sc_c,"rx_c",rx_c,"de_c",
-                    de_c)
+    caption = "**Abortion Data:** 'www.in.gov/health/vital-records/vital-statistics/terminated-pregnancy-reports/'<br>
+    **Graphic:** Ted Schurter 2023"
   ) +
   # annotations and markers above 0 on x axis ####
 # rx abortion label
@@ -351,19 +354,19 @@ annotate("text_box",x=1.75, y=67,
   # total pct label
   annotate("text_box",x=2.5, y=38,
            label = paste(wk_0_13_tot,"% of abortions happen within the first 13 weeks."),
-           size = 4, hjust = 0, color="black", box.color=panel_c,
+           size = 4.5, hjust = 0, color="black", box.color=panel_c,
            fill = NA, label.colour = panel_c, lineheight = 1)+
   # segment for total pct label
-  geom_segment(x=2.5, y = 44, xend = 1.85, yend = 44, color = "black", size = .15,
+  geom_segment(x=2.5, y = 44, xend = 1.85, yend = 44, color = sc_c, size = .15,
                arrow = arrow(length = unit(0.1, "cm")))+
-  geom_curve(x=2.5, y = 44, xend = 2, yend = 30, color = "black", size = .15,
+  geom_curve(x=2.5, y = 44, xend = 2, yend = 30, color = sc_c, size = .15,
              curvature = list(0.45), arrow = arrow(length = unit(0.1, "cm")))+
   
   # not legal after 22 weeks
   annotate("text_box",x=6, y=45.5,
            label = post_22_wk_lab, size = 3.5, hjust = 0, color="black", box.color=panel_c,
            fill = NA, label.colour = panel_c, lineheight = 1, width = unit(3, "inch"))+
-  geom_segment(x=5.85, y = 80, xend = 5.85, yend = 0, color = "gray", size = .05,
+  geom_segment(x=5.85, y = 80, xend = 5.85, yend = 0, color = "light gray", size = .05,
                linetype = "dashed")+
   # annotations and markers below 0 on x axis ####
 # gestational age labels ####
@@ -405,7 +408,7 @@ annotate("text_box",x=.5, y=-8,label = "0 to<br> 8 weeks",size = 2.5, hjust = 0,
 # first trimester
 geom_segment(x=.55, xend = 2.20, y = -14.5, yend = -14.5, color="light gray", size = 1.4)+
   # "1st trimester"
-  annotate("text_box",x=.55, y=-18.75,label = "1st trimester",size = 2.2, hjust = .045, 
+  annotate("text_box",x=.55, y=-18.75,label = "1st trimester (not to scale)",size = 2.2, hjust = .045, 
            color=body_text, box.color=NA, fill = NA, label.colour = panel_c, lineheight = 1)+
   # second trimester
   geom_segment(x=2.20, xend = 7.6, y = -14.5, yend = -14.5, color="dark gray", size = 1.4)+
@@ -431,53 +434,46 @@ geom_segment(x=.55, xend = 2.20, y = -14.5, yend = -14.5, color="light gray", si
   # segment for surgical aspiration abortion label
   # geom_segment(x=3.65, y = -26, xend = 3.65, yend = -17, color = sc_c, size = .15,
   #              arrow = arrow(length = unit(0.1, "cm")))+
-  annotate("text_box",x=1.95, y=-21.5,
+  annotate("text_box",x=1.79, y=-21.5,
            label = asp_lab,
            size = 3, hjust = 0, color="black", box.color=panel_c,vjust = 1,
            fill = NA, label.colour = panel_c, lineheight = 1,width = unit(1.5, "inch"))+
   #unit(1.65, "inch"))+
   # sc label 
   annotate("text_box",
-           x = 3.75, y = -21.5,
+           x = 3.54, y = -21.5,
            #x=3.75, y=-21.5,
            label = sc_lab,
            size = 3, hjust = 0, color="black", box.color=panel_c,vjust = 1,
            fill = NA, label.colour = panel_c, lineheight = 1,width = unit(1.45, "inch"))+
-  #unit(1.65, "inch"))+
-  # dc label# dc label
+  
+  # dc label
   annotate("text_box",
-           x=5.55, y=-21.5,
+           x=5.31, y=-21.5,
            #x=5.55, y=-21.5,
            label = dc_lab,
            size = 3, hjust = 0, color="black", box.color=panel_c,vjust = 1,
            fill = NA, label.colour = panel_c, lineheight = 1,width = unit(1.3, "inch"))+
-  #unit(1.5, "inch"))+
-  # segment for surgical D&E abortion label
-  # geom_segment(x=3.72, y = -23, xend = 3.72, yend = -17, color = sc_c, size = .15,
-  #              arrow = arrow(length = unit(0.1, "cm")))+
-  # geom_segment(x=3.72, y = -23, xend = 6.75, yend = -23, color = sc_c, size = .15)+
-  # geom_segment(x=6.75, y = -23, xend = 6.75, yend = -17, color = sc_c, size = .15,
-  #              arrow = arrow(length = unit(0.1, "cm")))+
-  # geom_segment(x=4, y = -23, xend = 4, yend = -27, color = sc_c, size = .15,
-  #           arrow = NULL)+
   annotate("text_box",
-           x=7.15, y=-21.5,
+           x=6.91, y=-21.5,
            #x=7.15, y=-21.5,
            label = de_lab,
            size = 3, hjust = 0, color="black", box.color=panel_c, vjust = 1,
            fill = NA, label.colour = panel_c, lineheight = 1, width = unit(1.7, "inch"))+
-  #unit(1.85, "inch"))+
-  # annotate("text_box",x=7.75, y=-21.5,
-  #          label = rep_lab,
-  #          size = 3.75, hjust = 0, color="black", box.color=panel_c, vjust = 1,
-  #          fill = NA, label.colour = panel_c, lineheight = 1, width = unit(3, "inch"))+
   annotate("text_box",
-           x=9, y=-21.5,
+           x=8.81, y=-21.5,
            #x=9.2, y=-21.5,
            label = dx_lab,
            size = 3, hjust = 0, color="black", box.color=panel_c, vjust = 1,
            fill = NA, label.colour = panel_c, lineheight = 1, width = unit(1.7, "inch"))+
-  #unit(1.75, "inch"))+
+  # test label
+  # annotate("text_box",
+  #         x= -.4, y=-25.5,
+  #         #x=9.2, y=-21.5,
+  #         label = "Types<br>of<br>abortions",
+  #         size = 3, hjust = 0, color="black", box.color=panel_c, vjust = 1,
+  #         fill = NA, label.colour = panel_c, lineheight = 1, width = unit(1.7, "inch"))+
+  
   # hidden line used to ensure appropriate depth for labels
   geom_hline(x=0, xend=11.4, yintercept = -85, color = panel_c, size =1)
 

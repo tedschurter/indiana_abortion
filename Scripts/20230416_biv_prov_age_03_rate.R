@@ -302,7 +302,7 @@ ol <- anti_join(pop_ab, pop_ab_f) %>%
     fem_rte > 180 ~ "3-"))%>% 
   mutate(bi_class = case_when(
     rate < 1.7 ~ paste0(bi_class,"1"),
-    rate > 3.2 & rate < 8.3 ~ paste0(bi_class, "2"),
+    rate > 1.71 & rate < 3.2 ~ paste0(bi_class, "2"),
     rate > 3.3 ~ paste0(bi_class, "3")))
 
 # join ol (outlier) dataframe to dataframe with outliers removed

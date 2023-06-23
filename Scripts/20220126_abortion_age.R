@@ -179,7 +179,7 @@ subtitle <- paste0("The consolidation of the youngest age ranges starting in 202
             " abortions annually for nine to 14 year-olds from 2014 to 2019, ",
             round(ab_age %>% filter(age == "12-14" | age == "10-14" | age == "9-13") %>% ungroup() %>%  summarise(sum(count))/
             ab_age %>%filter(year != 2020 & year != 2021) %>% ungroup() %>% summarise(sum(count))*100,2),
-            "% of the total.<br><br><br>")
+            "% of the total.<br>")
 
 #
 y_labs <- c(
@@ -213,23 +213,24 @@ ggplot(ab_age) +
                               2021, 2022),
                    labels = c("2014", "2015", "2016","2017","2018","2019","2020",
                               "2021", "")
-                   )+
+  )+
   labs(title = title,
        subtitle = subtitle,
        fill = "Percent of\nabortions",
-       )+
-  guides(fill=guide_colourbar(title.vjust=.85))+
+       caption = "<br>**Data:** 'www.in.gov/health/vital-records/vital-statistics/terminated-pregnancy-reports'<br>
+  **Graphic:** Ted Schurter 2023")+
+  guides(fill=guide_colourbar(title.position = "bottom"))+ #.85
   # line marking 14 and under 2019
   geom_segment(aes(
-           x = 6.55, xend = 6.55,
-           y = .5, yend = 3.4),
-           color = "gray85", linewidth = .25)+
+    x = 6.55, xend = 6.55,
+    y = .5, yend = 3.4),
+    color = "gray85", linewidth = .25)+
   geom_text(aes(
     x = 6.65, y = 2),
     color = "gray55", size = rel(2.75), hjust = 0, fontface = "plain", lineheight = .9,
     label = paste0("Nine to 14 year-olds had\n", round(ab_age %>% filter(age == "12-14" | age == "10-14" | age == "9-13") %>% ungroup() %>%  summarise(sum(count))/
-                ab_age %>%filter(year != 2020 & year != 2021) %>% ungroup() %>% summarise(sum(count))*100,2),
-                "% of all abortions from\n2014 to 2019."))+
+                                                         ab_age %>%filter(year != 2020 & year != 2021) %>% ungroup() %>% summarise(sum(count))*100,2),
+                   "% of all abortions from\n2014 to 2019."))+
   # line marking 20-29 
   geom_segment(aes(
     x = 8.55, xend = 8.55,
@@ -241,13 +242,18 @@ ggplot(ab_age) +
     label = paste0(round(100*(ab_age %>% group_by(age) %>% filter(age == "20-24" | age == "25-29" ) %>% 
                                 ungroup() %>%  summarise(sum(count)))/(ab_age %>% ungroup() %>% summarise(sum(count)))),
                    "% of\nall abortions"))+
+  # bottom x axis line
+  geom_segment(aes(
+    x = 0, xend = 8.5,
+    y = .1, yend = .1),
+    color = "gray85", linewidth = .25)+
   t_theme()+
   theme(
     axis.text.y   = element_markdown(color = "dark gray", size = 8),
     #axis.title  = element_blank(),
     axis.title.x  = element_blank(),
     axis.ticks  = element_blank(),
-    axis.line   = element_line(color = "light gray", size = .25),
+    axis.line.y   = element_line(color = "light gray", size = .25),
     plot.background  = element_rect(color = NA, fill  = panel_c),
     panel.background = element_rect(color = NA, fill = panel_c),
     panel.grid.major.y = element_blank(),
@@ -255,11 +261,11 @@ ggplot(ab_age) +
     legend.background = element_rect(color = NA, fill = NA),
     legend.text = element_text(colour="gray40", size = 7),
     legend.title = element_text(colour="gray40", size = 8),
-    legend.direction = "horizontal",
-    legend.position = c(.78,1.075),
+    legend.direction = "vertical",
+    legend.position = c(.95, .2), # c(.78,1.085)
     plot.title = element_textbox_simple(size = rel(1.5), color = "gray25", 
-                 hjust = 0,lineheight = 1, family = "serif", face = "plain", 
-                 margin = unit(c(0, .2, 6, 0), "pt")),
+                                        hjust = 0,lineheight = 1, family = "serif", face = "plain", 
+                                        margin = unit(c(0, .2, 6, 0), "pt")),
     
   )
    

@@ -367,9 +367,9 @@ t <-  mnth %>%
 ggplot()+ theme_classic()+
   # line for monthly totals
   geom_segment(data = mnth,
-               aes(x=2013.3, xend = 2021,
+               aes(x=2013.5, xend = 2021,
                    y = 0, yend = 0),
-               size = .25, color = "gray70")+
+               size = .3, color = "gray60")+
   geom_line(data = mnth %>% 
               ungroup() %>% 
               group_by(month) %>% 
@@ -377,7 +377,7 @@ ggplot()+ theme_classic()+
                      dif_mn = res-mn_avg,
                      pct_df_m = (dif_mn/mn_avg)*100),
             aes(year, pct_df_m, group = month), 
-            size = .3, color = "gray92", show.legend = F)+
+            size = .35, color = "gray90", show.legend = F)+
   geom_line(data = mnth %>% 
               ungroup() %>% 
               group_by(month) %>% 
@@ -401,91 +401,99 @@ ggplot()+ theme_classic()+
                     mutate(mn_avg = mean(res),
                            dif_mn = res-mn_avg,
                            pct_df_m = (dif_mn/mn_avg)*100) %>% filter(year == 2021),
-    #data= t %>% filter(year == 2021),
                   aes(year, pct_df_m, label = s_m_lab),
-                  xlim = c(2021.7), 
-                  hjust = .25,
-                  point.padding = 1.25,
+                  #xlim = c(2021.4),
+                  #point.padding = 1,
                   nudge_y = 0, 
-                  nudge_x = .7,
-                  force = 2,
+                  nudge_x = .2, # .7
+                  #force = 2,
                   color = m_lab_c, 
                   segment.color = "gray75",
                   size = rel(2.35), 
                   fontface = "plain", 
                   direction = "y",
                   segment.size = 0.1,
-                  min.segment.length = 1.5,
+                  min.segment.length = 3,
+                  hjust = 0,
                   seed = 2, 
   )+
+  
   geom_textbox(data = mnth %>% 
                  ungroup() %>% 
                  group_by(month) %>% 
                  mutate(mn_avg = mean(res),
                         dif_mn = res-mn_avg,
                         pct_df_m = (dif_mn/mn_avg)*100),
-    aes(x= 2019.85, y = 15.15),
-    label = paste0("<span style = 'color:",h_avgc,"'>September</span> 
+               aes(x= 2019.85, y = 15.15),
+               label = paste0("<span style = 'color:",h_avgc,"'>September</span> 
                 went from well **below** its monthly average in 2019 to well **above** it in 2020."),
-    label.colour = NA, fill = panel_c,
-    size = rel(3.25), color = "gray50", 
-    hjust = 1, box.color = NA)+
+               label.colour = NA, fill = panel_c,
+               size = rel(3.25), color = "gray50", 
+               hjust = 1, box.color = NA)+
   geom_textbox(data = mnth %>% 
                  ungroup() %>% 
                  group_by(month) %>% 
                  mutate(mn_avg = mean(res),
                         dif_mn = res-mn_avg,
                         pct_df_m = (dif_mn/mn_avg)*100),
-    aes(x= 2017, y = -17.9),
-    label = paste0("<span style = 'color:",h_avgc,"'>**September**</span> 
+               aes(x= 2019.1, y = -17.9),
+               label = paste0("In 2019, <span style = 'color:",h_avgc,"'>**September**</span> 
                 was", 
-                   round(abs(t$pct_df_m[t$year == 2019 & t$month == "September"])),
-                   "% below its average in 2019."),
-    label.colour = NA, fill = panel_c,
-    size = rel(2.5), color = "gray50", 
-    hjust = 0, box.color = NA)+
+                              round(abs(t$pct_df_m[t$year == 2019 & t$month == "September"])),
+                              "% below its annual average."),
+               label.colour = NA, fill = panel_c,
+               size = rel(2.5), color = "gray50", 
+               hjust = 0, box.color = NA)+
   geom_segment(aes(
     x = 2019.67, xend = 2019.95,
     y = 13, yend = 11.95), 
     color = "gray10", linewidth = .15)+
   geom_textbox(
-    aes(x= 2013.3, y = 3.65),
+    aes(x= 2013.5, y = 3.9),
     label = "Above 0 = more than the monthly average.", 
     label.colour = NA, fill = panel_c,
-    size = rel(2), color = "gray50", 
+    size = rel(2.25), color = "gray50", 
     hjust = 0, box.color = NA,   width = unit(.6, "inch"))+
   geom_textbox(
-    aes(x= 2013.3, y = -3.65),
+    aes(x= 2013.5, y = -3.9),
     label = "Below 0 = less than the monthly average.", 
     label.colour = NA, fill = panel_c,
-    size = rel(2), color = "gray50", 
+    size = rel(2.25), color = "gray50", 
     hjust = 0, box.color = NA,   width = unit(.6, "inch"))+
   
   
   scale_y_continuous(limits = c(-20,20),
                      breaks = c(-20, -10, 0, 10, 20),
-                     labels = c("-20%", "-10%", "0", "10%", "20%"))+
-  scale_x_continuous(limits = c(2013.3, 2022),
+                     labels = c("-20%", "-10%", "0", "10%", "20%"),
+                     name = "Deviation<br>from<br>average")+
+  scale_x_continuous(limits = c(2013.5, 2022),
                      breaks = seq(2013, 2022, by = 1),
                      labels = c( "", "2014", "2015", "2016", "2017", "2018",
                                  "2019", "2020", "2021", ""))+
   t_theme()+
   #facet_wrap(~ month, scales = "free")+
   theme(
+    axis.text = element_text(color = "gray55",
+                             size  = rel(.95)),
     strip.background = element_blank(),
     strip.text = element_text(color = "gray35", hjust = 0),
     panel.grid.major.y = element_blank(),
-    # panel.background = element_rect(fill = panel_c,
-    #                                 color = "gray95"),
-    # axis.text.y = element_markdown(color = "gray55",
-    #                          size  = rel(.6)),
+    panel.background = element_rect(fill = panel_c,
+                                    color = panel_c),
+    plot.background = element_rect(fill = panel_c,
+                                   color = panel_c),
+    axis.title.y = element_markdown(color = "gray55",
+                                    size = rel(.6),
+                                    vjust = .60,
+                                    hjust = 1),
+    axis.title.x = element_blank()
   )+
   labs(title = paste0("The number of abortions to Indiana residents in a month fluctuates above 
   and below its eight-year average, sometimes dramatically. Between 2014 and 
   2021,<span style = 'color:",h_avgc,"'> ",
                       month.name[as.numeric(t %>% mutate(ab_pct_cg = pct_df_m-lag(pct_df_m)) %>% 
                                               arrange(desc(abs(ab_pct_cg))) %>% ungroup() %>% slice(1) %>% select(month))],"
-  </span>had the highest year to year change, shifting <span style = 'color:",h_avgc,"'>",
+  </span>had the highest year-to-year change, shifting <span style = 'color:",h_avgc,"'>",
                       round(t %>% mutate(ab_pct_cg = pct_df_m-lag(pct_df_m)) %>% arrange(desc(abs(ab_pct_cg))) %>% 
                               ungroup() %>% slice(1) %>% select(ab_pct_cg)),
                       "% </span>from 2019 to 2020. <span style = 'color:",l_avgc,"'> ",
@@ -493,7 +501,7 @@ ggplot()+ theme_classic()+
                                               group_by(month) %>% summarise(m = mean(mn_df, na.rm = T)) %>%  arrange(abs(m)) %>% select(month) %>% slice(1))],"
   </span>had the lowest average annual change."),
        
-       subtitle = "Each line shows how much a single month's abortion totals differ
+       subtitle = "Each line shows how far a single month's abortion totals deviate
   from the month's multi-year average.",      
        caption = "<br>**Data:** 'www.in.gov/health/vital-records/vital-statistics/terminated-pregnancy-reports'<br>
   **Graphic:** Ted Schurter 2023")  

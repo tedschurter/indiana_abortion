@@ -1,26 +1,54 @@
 ---
-title: "Analysis of Indiana Terminated Pregnancy Reports 2014 to 2021"
-author: "by Ted Schurter"
-#date: '2022-10-31'
-output: 
-  flexdashboard::flex_dashboard:
-    theme: lumen
-    #source_code: embed
+title: "<span style='font-size: 27px'>Analysis of Indiana Terminated Pregnancy Reports 2014 to 2021 </span>"
+author: "<span style = 'font-size: 16px'>by: Ted Schurter </span>"
+date:   "<span style = 'font-size: 13px'>June 22, 2023 </span>"
+output:
+  html_document:
+    
+theme: lumen
 
 ---
 
+<style>
+.leaflet-popup-content > img {
+    max-width: unset;
+}
+
+body {
+    background-color: #fffffe;
+  }
+</style>
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = F)
 knitr::opts_chunk$set(warning = F)
 knitr::opts_chunk$set(message = F)
-#knitr::opts_chunk$set(results = F)
+#knitr::opts_chunk$set(cache = T)
 ```
 
 
+```{r include = F}
+# 
+# knitr::opts_chunk$set(eval = T,
+#                       echo = F,
+#                       include = T,
+#                       warning = F,
+#                       dev = "png",
+#                       dpi = 200,
+#                       cache = FALSE,
+#                       fig.align  = "left",
+#                       fig.width  =  10,
+#                       fig.height =  5.86,
+#                       #fig.asp = 1.83,
+#                       out.width  = "100%",
+#                       out.height = "100%"
+#                       )
+
+```
+
 ```{r install_packages}
 packages <- c("tidyverse", "flexdashboard", 
-              "crosstalk", "leaflet", "DT", "jsonlite", "sf","tigris")
+              "crosstalk", "leaflet", "DT", "jsonlite", "sf","tigris", "english")
 if (length(setdiff(packages, rownames(installed.packages()))) > 0) {
   install.packages(setdiff(packages, rownames(installed.packages())), repos = "http://cran.us.r-project.org")  
 }
@@ -29,6 +57,7 @@ library(biscale)
 library(flexdashboard)
 library(crosstalk) 
 library(cowplot)
+library(english)
 library(leaflet)   
 library(DT)
 library(jsonlite)
@@ -44,7 +73,6 @@ library(ggrepel)
 library(osmdata)
 library(rmapshaper)
 ```
-
 
 ```{r custom theme}
 # set custom theme ####
@@ -70,10 +98,14 @@ t_theme <- function(base_size = 10){
       axis.title.y = element_text(color = "gray55",
                                   size = rel(.6)),
       
-      plot.title = element_textbox_simple(size = rel(1.5), color = "gray25", 
-                                          hjust = 0,lineheight = 1, family = "serif",face = "plain", margin = unit(c(0, 0, 6, 0), "pt")),
-      plot.subtitle = element_textbox_simple(size = rel(1.1), color = "gray40", hjust = 0,
-                                       lineheight = 1,margin = margin(0.2, 0, .2, 0, unit = "cm"),),
+      plot.title = 
+        element_textbox_simple(size = rel(1.5), color = "gray25", 
+                              hjust = 0,lineheight = 1, family = "serif",
+                              face = "plain", margin = unit(c(0, 0, 6, 0), "pt")),
+      plot.subtitle = 
+        element_textbox_simple(size = rel(1.1), color = "gray40", hjust = 0,
+                              lineheight = 1,margin = margin(0.2, 0, .2, 0, 
+                                                             unit = "cm"),),
       plot.caption = element_textbox_simple(family = "sans", size = rel(.7),
                                             color = "gray40", halign = 1,
                                             lineheight = 1.2),
@@ -85,508 +117,359 @@ t_theme <- function(base_size = 10){
 
 ```
 
-
-<style>
-.main-container {
-  max-width: 100% !important;
-}
-</style>
-
-County abortion rates 2014-2021 {data-navmenu="Maps"}
-=====================================  
-Column {data-width=1600}
-------------------------------------------------------------------------
-
-```{r import per_cap dataframe}
-# import dataframe per_cap created using script 20221025_Indiana_abortion_2014_2021.R
-
-# convert GEOID to character upon import
-c <- cols_only(
-  year          = col_double(),
-  GEOID         = col_character(),
-  Name          = col_character(),
-  fem_pop       = col_double(),
-  Count         = col_double(),
-  rate          = col_double(),
-  yr_med        = col_double(),
-  annual_co_med = col_double(),
-  median        = col_double()
-)
-
-per_cap <- read_csv("Exported_Data/per_cap.csv",
-                     col_types = c)
-
-
-options(tigris_use_cache=TRUE)  # cache data
-
-counties <- counties("IN", cb = T) %>% select(GEOID, geometry)
-
-sf_per_cap <- st_sf(left_join(per_cap, counties))
-
-sf_per_cap <- sf_per_cap %>% select(c("Year"= "year", "County" = "Name", "Females of childbearing age" = "fem_pop", "Abortions" = "Count", "Rate" = "rate", "counties_average" = "yr_med", "county_average" = "annual_co_med", "GEOID" = "GEOID"))
-
-
-```
-
-    
-```{r fig.width = 8.5, fig.height=11, interactive_map }
-
-bins <- c(12,8,7,6,5,4,3,2,1,0) # set custom bins to eliminate bins w/no values
-
-pal <- colorBin("BrBG", domain = per_cap$county_average, bins = bins, reverse = T,
-                na.color = NA)
-
-base_url = '"https://raw.githubusercontent.com/tedschurter/indiana_abortion/main/Plots/County_Plots/20221028_'
-end_url = '.png"'
-
-
-leaflet(sf_per_cap,
-    options = leafletOptions(minZoom = 6.5,
-                             maxZoom = 6.5)) %>% 
-  fitBounds(39.767, 86.157, 39.867, 86.057) %>% 
-  addProviderTiles(provider=providers$CartoDB.Positron) %>% 
-  setView( lat=39.76846846959756, lng=-86.4979434376352, zoom=6.5) %>%
-  addPolygons(
-    stroke = T, 
-    fillOpacity = 1,
-    weight = 1,
-    color = "black",
-    fillColor = ~pal(county_average),
-    label = ~ County,
-    popup = paste0("<img src = ", base_url,sf_per_cap$GEOID,end_url, "width=300 height=211px >")) %>% 
-  addLegend(pal = pal, values = ~county_average, opacity = 0.7, position = "bottomleft", 
-            title = "Abortion rate per<br>1,000 females of<br> childbearing age<br><br>Click to view county<br>rates.<br><br>",
-            labels = c(0 == "zero")) 
-
-```
-
-
-Abortion rates for 20-34 year-olds by county {data-navmenu="Maps"}
-===================================== 
-
-
-```{r import data for abortion totals and age data}
-# 2020-2021 population totals ####
-# categorical variables (age, sex) were not available via the api for 2021. found 
-# them elsewhere, though as  csv:
-# https://www2.census.gov/programs-surveys/popest/datasets/2020-2021/counties/asrh/cc-est2021-agesex-18.csv
-# 
-# from their file layout document regarding years:
-# https://www2.census.gov/programs-surveys/popest/technical-documentation/file-layouts/2020-2021/cc-est2021-agesex.pdf
-#   "The key for YEAR is as follows:
-#    1 = 4/1/2020 population estimates base
-#    2 = 7/1/2020 population estimate
-#    3 = 7/1/2021 population estimate"
-
-# create vector of ages needed
-ages <- c("AGE2024_FEM", "AGE2529_FEM", "AGE3034_FEM")
-
-# import data from census.gov
-pop_data <- read_csv("https://www2.census.gov/programs-surveys/popest/datasets/2020-2021/counties/asrh/cc-est2021-agesex-18.csv")
-
-# filter to ages of 20:34-year-old females in 2021
-pop_1 <- pop_data  %>% 
-  select(c(county=CTYNAME,year=YEAR, paste(ages), COUNTY, STATE)) %>%  # select 
-  # age groups for females of childbearing age only: 10-49
-  filter(year != 1) %>% # filter out unnecessary estimate from April 2020 
-  mutate(
-    Name = str_extract_all(county, "(?<=^).*(?=\\s\\bCounty)"), # clean up county name
-    year = if_else(year == 2, 2020, 2021), # assign right year
-    GEOID = str_c(STATE, COUNTY)) %>% # combine STATE, YEAR FOR GEOID 
-  pivot_longer(3:5, names_to = NULL, values_to = "fem_pop") %>% 
-  group_by(Name, year, GEOID) %>% 
-  summarise(fem_pop = sum(fem_pop)) %>%  # add populations for age groups only
-  select(year, GEOID, Name, fem_pop) %>% 
-  filter(year == 2021) %>% 
-  ungroup()
-
-# import count for all women of child bearing age in county
-all_ages <- "POPEST_FEM"
-#c("AGE1519_FEM","AGE2024_FEM","AGE2544_FEM","AGE4549_FEM")
-pop_2 <- pop_data  %>% 
-  select(c(county=CTYNAME,year=YEAR, paste(all_ages), COUNTY, STATE)) %>%  # select 
-  # age groups for females of childbearing age only: 10-49
-  filter(year != 1) %>% # filter out unnecessary estimate from April 2020 
-  mutate(
-    Name = str_extract_all(county, "(?<=^).*(?=\\s\\bCounty)"), # clean up county name
-    year = if_else(year == 2, 2020, 2021), # assign right year
-    GEOID = str_c(STATE, COUNTY)) %>% # combine STATE, YEAR FOR GEOID 
-  pivot_longer(3, names_to = NULL, values_to = "fem_pop") %>% 
-  group_by(Name, year, GEOID) %>% 
-  summarise(all_age = sum(fem_pop)) %>%  # add populations for age groups only
-  select(year, GEOID, Name, all_age) %>% 
-  filter(year == 2021) %>% 
-  ungroup() %>% 
-  select(-year)
-#
-# check for NA's
-# sum(is.na( pop_1)) # returns 0
-# sum(is.na( pop_2)) # returns 0
-
-# add fem_rte column for percent of population 20-34-years old; remove year
-pop <- left_join(pop_1, pop_2, by = c("Name", "GEOID")) %>% 
-  mutate(fem_rte = round(fem_pop/all_age,2)*1000) %>% 
-  select(-year)
-
-#sum(is.na(pop$fem_rte)) # 0
-
-# import 2021 abortion totals
-ab <- read_csv("Exported_Data/2021_abortion_count.csv")
-
-#sum(is.na(ab$Count))
-
-# convert ab$name to list from character
-ab$Name <- as.list(ab$Name)
-
-# join to population totals
-pop_ab <- left_join(pop, ab, by = c("Name" = "Name")) 
-
-# check for NAs 
-#anyNA(pop_ab) # returns TRUE
-
-#which(is.na(pop_ab), arr.ind=TRUE)
-
-#pop_ab[17,] %>% View 
-
-# where is the problem
-
-#anti_join(pop, ab, by = c("Name" = "Name")) %>% View  # DeKalb
-#anti_join(ab, pop, by = c("Name" = "Name")) %>% View  # De Kalb
-
-# De Kalb; in row 15 of ab dataframe needs to be replaced with DeKalb then re-join 
-# reimport ab - need Name column to be list again
-
-ab <- read_csv("Exported_Data/2021_abortion_count.csv")
-
-# rename Dekalb
-ab[15,1] <- "DeKalb"
-
-# convert ab$name to list
-ab$Name <- as.list(ab$Name)
-
-# create new dataframe and calculate rate per 1000
-pop_ab <- left_join(pop, ab, by = c("Name" = "Name")) %>%
-  mutate(rate = round(1000*(Count/fem_pop),1)) 
-
-#anyNA(pop_ab) # FALSE
-
-
-#clean up 
-rm(pop, pop_1, pop_2, pop_data, ab)
-
-```
-
-```{r add county geometry, convert to sf, calculate IQR}
-# add geometry for mapping
-# import county geometry for mapping
-options(tigris_use_cache=TRUE)  # cache data
-
-# import geometry for counties and GEOID
-counties <- counties("IN", cb = T) %>% select(NAME, geometry)
-#colnames(counties)  <- c("Name", "geometry")
-
-pop_ab$Name <- as.character(pop_ab$Name)
-
-# join county geometry to dataframe
-pop_ab <- left_join(pop_ab, counties, by= c("Name" ="NAME"))
-
-pop_ab <- st_sf(pop_ab)
-
-
-# what are the ranges for our data?
-
-#IQR for rate and fem_rte
-pop_ab_r_iqr <- IQR(pop_ab$rate) 
-#pop_ab_r_iqr # 5.025
-pop_ab_f_iqr <- IQR(pop_ab$fem_rte) 
-#pop_ab_f_iqr # 20
-```
-
-```{r}
-pop_ab_f <- bi_class(pop_ab %>% filter(rate >= quantile(pop_ab$rate)[2] - (pop_ab_r_iqr*1.5), 
-                                       rate <= quantile(pop_ab$rate)[3] + (pop_ab_r_iqr*1.5),
-                                       fem_rte  >= quantile(pop_ab$fem_rte)[2] - (pop_ab_f_iqr*2), 
-                                       fem_rte  <= quantile(pop_ab$fem_rte)[3] + (pop_ab_f_iqr*2)),
-                     x = fem_rte, y = rate, style = "jenks", dim = 3, keep_factors = T)
-
-
-
-# use anti-join to create dataframe of the columns that were filtered out and then 
-# use case_when to create bi_class rating using breaks from bi_scale package
-
-# $bi_x
-# [1] "13-16" "16-18" "18-23"
-# 
-# $bi_y
-# [1] "0-4.4"    "4.4-8.3"  "8.3-13.8"
-
-
-pop_ab_f$geometry <- NULL
-pop_ab$geometry <- NULL
-
-ol <- anti_join(pop_ab, pop_ab_f) %>% 
-  mutate(bi_class = case_when(
-    fem_rte < 16 ~ "1-",
-    fem_rte %in% 16:18 ~ "2-",
-    fem_rte > 18 ~ "3-"))%>% 
-  mutate(bi_class = case_when(
-    rate < 4.4 ~ paste0(bi_class,"1"),
-    rate > 4.4 & rate < 8.3 ~ paste0(bi_class, "2"),
-    rate > 8.3 ~ paste0(bi_class, "3")))
-
-# join ol (outlier) dataframe to dataframe with outliers removed
-pop_ab <- full_join(pop_ab_f, ol)
-
-# add geometry back to dataframe
-pop_ab <- left_join(pop_ab, counties, by= c("Name" ="NAME"))
-
-pop_ab <- st_sf(pop_ab)
-```
-
-```{r create legend}
-panel_c <- "#fdfdf2"
-
-
-legend <- bi_legend(pal = "DkCyan",
-                    dim = 3,
-                    xlab = "  Rate 20-34 females ",
-                    ylab = "  Abortion rate",
-                    size = 8,)+
-  theme(
-    plot.background = element_rect(fill = panel_c, color = panel_c,),
-    panel.background = element_rect(fill = panel_c)
-  )
-```
-
-```{r import age abortion data for headline data}
-# import abortion age data for headline purposes
-ab_age <- read_csv("Exported_Data/ab_age.csv")
-```
-
-```{r create x and y coordinates for county labels}
-# create x and y label coordinates ####
-# low low classification
-ll <- pop_ab %>% filter(bi_class == "1-1") %>% slice(6) %>%  
-  # use slice adjust county as needed
-  st_centroid(geometry) %>% select(geometry) 
-
-ll <- do.call(rbind, st_geometry(ll))
-
-ll_x <- ll[1] 
-ll_y <- ll[2]
-
-# low high 
-lh <- pop_ab %>% filter(bi_class == "1-3") %>% slice(1) %>%  
-  # use slice adjust county as needed
-  st_centroid(geometry) %>% select(geometry) 
-
-lh <- do.call(rbind, st_geometry(lh))
-
-lh_x <- lh[1]
-lh_y <- lh[2]
-
-# 
-
-# high low
-
-hl <- pop_ab %>% filter(bi_class == "3-1") %>% slice(1) %>%  
-  # use slice adjust county as needed
-  st_centroid(geometry) %>% select(geometry) 
-
-hl <- do.call(rbind, st_geometry(hl))
-
-hl_x <- hl[1]
-hl_y <- hl[2]
-
-# high high
-
-hh <- pop_ab %>% filter(bi_class == "3-3") %>% slice(5) %>%  
-  # use slice adjust county as needed
-  st_centroid(geometry) %>% select(geometry) 
-
-hh <- do.call(rbind, st_geometry(hh))
-
-hh_x <- hh[1]
-hh_y <- hh[2]
-```
-
-```{r create map}
-map2 <- 
-  ggplot() +
-  geom_sf(data = pop_ab, mapping = aes(fill = bi_class), color = "white", size = 0.1, show.legend = FALSE) +
-  bi_scale_fill(pal = "DkCyan", dim = 3)+
-  ylim(37.85,41.75)+
-  # low abortion low income county curve ####
-geom_curve(
-  aes(
-    x = ll_x/.992,
-    xend = ll_x-.2,
-    y = ll_y*1.012,
-    yend = ll_y),
-  curvature = .2,
-  linewidth = .5,
-  color = "#6F7378",
-  arrow = arrow(length = unit(.2, "cm")))+ #low abortion low income county text
-  annotate("text", ll_x/.984, ll_y*1.02,
-           colour = "#6F7378",
-           size = 3.15,
-           label = "Light gray counties:\nlow abortion, few\n20 to 34 year-olds.",
-           lineheight = .9,
-           hjust=0)+
-  # low high curve and label
-  geom_curve(
-    aes(
-      x = lh_x*.978,
-      xend = lh_x,
-      y = lh_y/1.001,
-      yend = lh_y),
-    curvature = -.28,
-    linewidth = .55,
-    color = "#6F7378",
-    arrow = NULL)+#arrow(length = unit(.2, "cm")))+
-  # low abortion low income county text
-  annotate("text", lh_x*.981, lh_y/.995,
-           colour = "#6F7378",
-           size = 3.15,
-           label = "Green counties:\nhigh abortion, few\n20 to 34 year-olds.",
-           lineheight = .9,
-           hjust=0
-  )+
-  # high low curve and label
-  geom_curve(
-    aes(
-      x = hl_x*.985,
-      xend = hl_x+.25,
-      y = hl_y*1.015,
-      yend = hl_y),
-    curvature = -.3,
-    linewidth = .5,
-    color = "#6F7378",
-    arrow = arrow(
-      length = unit(.2, "cm")))+
-  # low abortion low income county text
-  annotate("text", hl_x*.987, hl_y*1.022,
-           colour = "#6F7378",
-           size = 3.15,
-           label = "Blue counties:\nlow abortion, many\n20 to 34 year-olds.",
-           lineheight = .9,
-           hjust=0
-  )+
-  #high high curve and label
-  geom_curve(
-    aes(
-      x = hh_x+.8,
-      xend = hh_x+.25,
-      y = hh_y,
-      yend = hh_y),
-    curvature = 0,
-    linewidth = .5,
-    color = "#6F7378",
-    arrow = arrow(
-      length = unit(.2, "cm")))+
-  # high abortion high 20-34 county text
-  annotate("text", hh_x+.88, 
-           hh_y,
-           colour = "#6F7378",
-           size = 3.15,
-           label = "Dark green counties:\nhigh abortion, many\n20 to 34 year-olds.",
-           lineheight = .9,
-           hjust=0
-  )+
-  # blank annotation to extend right margin (xlim removes annotations and curves)
-  annotate("text", hh_x/1.027, hh_y*1.013,
-           colour = "#6F7378",
-           size = 3.15,
-           label = "",
-           lineheight = .9,
-           hjust=0
-  )+
-  # blank annotation to extend left margin (xlim removes annotations and curves)
-  annotate("text", hh_x*1.043, hh_y*1.013,
-           colour = "#6F7378",
-           size = 3.15,
-           label = "",
-           lineheight = .9,
-           hjust=0
-  )+
-  t_theme()+
-  theme(
-    panel.grid.major.y = element_blank(),
-      #panel.grid.major.y = element_blank(),
-      panel.grid.major.x = element_blank(), 
-    plot.background = element_rect(fill=panel_c, color = panel_c),
-    panel.background = element_rect(fill=panel_c, color = panel_c),
-    axis.text = element_blank(),
-     axis.title.y = element_blank(),
-    axis.title.x = element_blank(),
-    axis.line = element_blank(),
-    axis.ticks = element_blank(),
-    plot.margin = margin(0, .5, 0, .5, unit = "cm")
-  )+
-  labs(
-    subtitle = paste0("Women in this age range are ", 
-                      round(sum(pop_ab$fem_pop)/sum(pop_ab$all_age)*100),
-                      "% of the female population and receive ",
-                      round(ab_age %>% filter(num %in% 4:6 & year == 2021) %>% summarise(sum(pct))),
-                      "% of all abortions."),
-    title = paste0(broman::spell_out(pop_ab %>% filter(bi_class == '3-3') %>% nrow(), capitalize = TRUE),
-                   " Indiana counties have a high rate of abortion and a high rate of women 
-               between 20 and 34 years old; ",
-                   broman::spell_out(pop_ab %>% filter(bi_class == '1-1') %>% nrow(), capitalize = TRUE),
-                   " counties have low rates of both."),
-    caption = paste0("<br>**Data:** 'www.in.gov/health/vital-records/vital-statistics/terminated-pregnancy-reports'
-   'www2.census.gov/programs-surveys/popest/datasets/2020-2021/counties/asrh/cc-est2021-agesex-18.csv'
-   \n**Graphic:** Ted Schurter 2023"))
-
-finalPlot2 <- ggdraw() +
-  draw_plot(map2, x =0, y= 0.015, width = 1, height = 1) +
-  draw_plot(legend, x= 0.74, y = .13, width = 0.22, height = 0.22)+
-  theme(
-    plot.background = element_rect(fill = panel_c, color = panel_c)
-  )
-```
-
-
-```{r, fig biv map, fig.height = 7 }
-finalPlot2
-```
-
-
-
-
-Abortion procedure type<br>by gestational age {data-navmenu="Charts"}
-===================================== 
-
-
-
 ```{r include = F}
 
-knitr::opts_chunk$set(eval = T,
-                      echo = F,
-                      include = T,
-                      warning = F,
-                      dev = "png",
-                      dpi = 200,
-                      cache = FALSE,
-                      fig.align  = "left",
-                      fig.width  =  10,
-                      fig.height =  5.86,
-                      #fig.asp = 1.83,
-                      out.width  = "90%",
-                      out.height = "90%"
-                      )
+# knitr::opts_chunk$set(eval = T,
+#                       echo = F
+#                       # include = T,
+#                       # warning = F,
+#                       #dev = "png",
+#                       #dpi = 200,
+#                       #cache = FALSE,
+#                       #fig.align  = "left",
+#                       # fig.width  =  10,
+#                       # fig.height =  5.86
+#                       #fig.asp = 1.83,
+#                       # out.width  = "100%",
+#                       # out.height = "100%"
+#                       )
 
 ```
 
+<br>
+
+#### Indiana was the first state to pass a [new abortion law](https://iga.in.gov/laws/2022/ic/titles/16#16-34) after the U.S. Supreme Court [struck down](https://www.supremecourt.gov/opinions/21pdf/19-1392_6j37.pdf) Roe v. Wade on June 24, 2022. Passed six weeks after the high court’s Dobbs v. Jackson Women's Health Organization decision, Indiana's law prohibits abortion except in cases of incest or rape, fatal fetal anomaly, or to save or preserve the life of the mother. The ban was short-lived as judges in [two](https://thehill.com/homenews/state-watch/3760751-second-judge-blocks-indiana-abortion-ban/) separate lawsuits blocked it while the cases are litigated.
+
+#### While those cases proceed, abortion remains legal up to 22 weeks of gestational age. Though Indiana law cites post-fertilization age, most analysis, including that by the Indiana Department of Health (IDH), instead use gestational age, which is approximately two weeks greater than post-fertilization age. Indiana's [Terminated Pregnancy Reports](https://www.in.gov/health/vital-records/vital-statistics/terminated-pregnancy-reports/), published annually by the IDH, outline the details of abortion in the state. If the ban is upheld, they will also serve as a historical record, illuminating the context of abortion and revealing where it was most common and among what populations.
+
+#### If Indiana’s abortion ban is overturned, the pending outcome of federal lawsuits may impact its practice within the state and beyond. U.S. District Judge Matthew Kacsmaryk [ordered](https://www.reuters.com/world/us/texas-judge-suspends-approval-abortion-pill-what-happens-next-2023-04-08/) in April 2023 a hold on federal approval of the drug mifepristone, one of two drugs commonly used in medication abortions, while the case moves forward challenging its FDA approval. The U.S. Supreme Court ultimately issued a [stay](https://www.google.com/url?sa=t&rct=j&q=&esrc=s&source=web&cd=&cad=rja&uact=8&ved=2ahUKEwjavKO8u9T_AhVMkIkEHf6CC-kQFnoECBQQAQ&url=https%3A%2F%2Fapnews.com%2Farticle%2Fsupreme-court-abortion-pill-mifepristone-access-f781488016640bf571faf36096339ea4&usg=AOvVaw2nbN4gg6wM_CX2hSpwxF_M&opi=89978449) on that decision, preserving access to the drug while the case is decided by the Fifth Circuit Court. 
+
+#### Resolution regarding mifepristone's legality is complicated by another [ruling](https://www.google.com/url?sa=t&rct=j&q=&esrc=s&source=web&cd=&cad=rja&uact=8&ved=2ahUKEwiHjOvVu9T_AhWtjIkEHcXiBTcQFnoECB8QAQ&url=https%3A%2F%2Fwww.atg.wa.gov%2Fnews%2Fnews-releases%2Fag-ferguson-full-protections-mifepristone-access-remain-intact-18-states&usg=AOvVaw09xI-5FsJD_dHYDS2Stx8D&opi=89978449) issued the same day by Judge Thomas O. Rice, District Judge for the Eastern District of Washington, that prohibited the FDA from restricting access to the drug. Rice’s order is limited to Washington, D.C. and the 17 states involved in the case. The competing orders may need to be resolved by the U.S. Supreme Court.<br>
+
+#### If mifepristone's FDA approval is revoked, and the Indiana ban is overturned, medication abortions in the state would be limited to the use of misoprostol. Although not as [effective](https://www.ipas.org/clinical-update/english/recommendations-for-abortion-before-13-weeks-gestation/medical-abortion/safety-and-effectiveness/) as the combination of mifepristone and misoprostol, abortions using just misoprostol, which induces cramping and bleeding to empty the uterus and are common in places without access to mifepristone, could continue.
+
+#### Abortion access in a post-Dobbs world will likely be uncertain and uneven for some time, and with it, the practice of abortion in Indiana and beyond.
+
+<br>
+
+### Context of abortion in Indiana 2014 to 2021
+
+<br>
+
+```{r import_proc_data, echo=FALSE, include = F, message=F, warning=F}
+
+mnth <- read_csv("Exported_Data/month_ab_IN_res_clean.csv")
+gp <- read_csv("Exported_Data/gest.csv")
+proc_14_18 <- read_csv("Exported_Data/procedure_14_18.csv")
+proc_19_21 <- read_csv("Exported_Data/procedure_19_21.csv")
+proc_14_18_consol <- read_csv("Exported_Data/procedure_14_18_consol.csv")
+proc_14_18_surg_consol <- read_csv("Exported_Data/proc_14_18_surg_consol.csv")
+med_cng <- read_csv("Exported_Data/med_cng.csv")
+surg_cng <- read_csv("Exported_Data/surg_cng.csv")
+tot <- sum(gp[,3])
+proc_tot <- read_csv("Exported_Data/proc_tot.csv")
+
+```
+
+#### Abortions are often classified as either medical or surgical. Medical abortions, sometimes referred to as medication abortions, use medication to end a pregnancy and have become the most common, growing an average `r round(sum(med_cng$pct_cng, na.rm=T)/length(proc_tot$year),2)`% annually. Since the FDA [expanded](https://www.accessdata.fda.gov/drugsatfda_docs/label/2016/020687s020lbl.pdf) the approved use of mifepristone from seven weeks of pregnancy to 10 weeks in 2016, medication abortions have increased `r paste0(100*round((med_cng$Count[med_cng$year == max(med_cng$year)]-med_cng$Count[med_cng$year == 2016]) /med_cng$Count[med_cng$year == max(med_cng$year)],2),"%")` and become the dominant method.
+
+
+```{r proc_line_segments}
+# medical segment start
+rx_seg_1 <-  proc_14_18 %>% filter(year == 2018) %>% 
+  filter (Procedure == "Mifepristone Misoprostol") %>% pull()
+# medical segment end
+rx_seg_2 <-  proc_19_21 %>% filter(year == 2019) %>% 
+  filter (Procedure == "Medical") %>% pull()
+# surgical segment start 
+sg_seg_1 <-  proc_14_18_consol %>% filter(year == 2018) %>% 
+  filter (Procedure == "Surgical") %>% pull()
+# surgical segment end
+sg_seg_2 <-  proc_19_21 %>% filter(year == 2019) %>% 
+  filter (Procedure == "Surgical") %>% pull()
+```
+
+```{r assign_proc_colors}
+panel_c <- "#fdfdf2" 
+body_text <- "black"
+procedure_colors <- list(
+  "Medical" = "#9db6c9",
+  "Medical (Surgical)" = "#9db6c9",
+  "Mifepristone Misoprostol" = "#9db6c9",
+  "Surgical" = "#029ba2",
+  "Suction Curettage"  = "#029ba2",
+  "Dilation Evacuation" = "#029ba2",
+  "surgical other" = "#029ba2")
+
+# slightly darker medical abortion color for text
+rx_c_txt <- "#91adc3" 
+
+```
+
+```{r proc_labels_annotations}
+surg_def_lab <- paste0(
+  "<span style = 'color:",procedure_colors$'Suction Curettage',";'>Surgical procedures</span>
+  <span style = 'color:",body_text,";'>including</span>
+  <span style = 'color:",procedure_colors$'Suction Curettage',";'>menstrual 
+  aspiraiton, suction curetttage, dilation and evacuation, and 'surgical other.'</span>")
+
+surg_def_lab <- paste0(
+  "<span style = 'color:",body_text,";'>All</span>
+  <span style = 'color:",procedure_colors$'Suction Curettage',";'>surgical abortions</span>
+  <span style = 'color:",body_text,";'>including</span>
+  <span style = 'color:",procedure_colors$'Suction Curettage',";'>suction curettage</span>")
+
+# medical line label
+med_lab <- paste0(
+  "<span style = 'color:",rx_c_txt,";'>Medical<br>abortions</span>")
+
+# suction curettage label
+sc_lab <- paste0(
+  "<span style = 'color:",procedure_colors$'Suction Curettage',";'>Suction curettage</span> 
+  <span style = 'color:",body_text,";'>only</span>")
+
+# all surgical label
+surg_lab <- paste0(
+  "<span style = 'color:",procedure_colors$'Suction Curettage',";'>Surgical<br>abortions</span>")
+
+# non sc surgical types label
+non_sc_surg <- paste0(
+  "<span style = 'color:",procedure_colors$'Suction Curettage',";'>All surgical abortions</span>
+  <span style = 'color:",body_text,";'>except</span>
+  <span style = 'color:",procedure_colors$'Suction Curettage',";'>suction curetttage.</span>")
+  
+  # 
+  # <span style = 'color:",body_text,";'>including</span>
+  # <span style = 'color:",procedure_colors$'Suction Curettage',";'>dilation and 
+  # evacuation, 'medical (surgical)', menstrual aspiration, and 'surgical other.'</span>")
+
+
+
+```
+
+```{r proc_titles_captions}
+pct_title <- paste0(
+  "<span style = 'color:",rx_c_txt,";'>Medical</span>
+  abortions grew on average</span>
+  <span style = 'color:",rx_c_txt,";'>",
+  paste0(round(sum(med_cng$pct_cng, na.rm=T)/length(proc_tot$year),2),'%'),"</span>
+  annually from 2014 to 2021 and eclipsed</span>
+  <span style = 'color:",procedure_colors$Surgical,";'>surgical</span>
+  abortions, which declined on average</span>
+  <span style = 'color:",procedure_colors$Surgical,";'>",
+  paste0(abs(round(sum(surg_cng$pct_cng, na.rm=T)/length(proc_tot$year),2)),"%"),
+  "</span>
+  annually, as the dominant abortion procedure in 2019. The rate for <span style 
+  = 'color:gray;'>all </span> abortions increased on average</span>
+  <span style = 'color:gray;'>",
+  round(sum(proc_tot$pct_cng, na.rm=T)/length(proc_tot$year),2),"%</span>
+  annually."
+)
+
+subtitle <- paste0(
+  "Indiana consolidated all distinct</span><span style = 'color:",procedure_colors$Surgical,";'> surgical</span> abortions into one category in 2018.<br></span>")
+
+
+```
+
+## {.tabset}
+
+### Chart
+```{r proc_plot, fig.width=10}
+ggplot()+
+  # 2014:2018 medical data
+  geom_line(data=proc_14_18 %>% 
+              filter(Procedure =="Mifepristone Misoprostol"),
+            aes(year, Count, group=Procedure),
+            size = 1.25, color=procedure_colors$Medical,show.legend=F)+
+  # 2014:2018 suction curettage data
+  geom_line(data=proc_14_18 %>% 
+              filter(Procedure =="Suction Curettage"),
+            aes(year, Count, group=Procedure),
+            size = .5, linetype = "solid", show.legend=F,
+            color=procedure_colors$Surgical)+
+  # 2014:2018 surgical non suction-curettage 
+  geom_line(data=proc_14_18_surg_consol %>% filter(Procedure=="Surgical"),
+            aes(year, Count, group=Procedure),
+            size = .5, linetype = "dashed", show.legend=F,
+            color=procedure_colors$Surgical)+
+  # medical line with data from 2019:2021
+  geom_line(data=proc_19_21 %>% filter(Procedure == "Medical"), 
+            aes(year, Count, group=Procedure),
+            size = 1.25, show.legend=F, color=procedure_colors$Medical)+
+  # surgical line with data from 2019:2021
+  geom_line(data=proc_19_21 %>% filter(Procedure == "Surgical"), 
+            aes(year, Count, group=Procedure),
+            color=procedure_colors$Surgical,
+            size = 1.25, show.legend=F, linetype = "solid")+
+  # line segment to connect medical lines from 2018:2019
+  geom_segment(aes(
+    x = 2018, xend = 2019,
+    y = rx_seg_1, yend = rx_seg_2),
+    show.legend=F, size = 1.25, color = procedure_colors$Medical)+
+  geom_segment(aes(
+    x = 2018, xend = 2019,
+    y = sg_seg_1, yend = sg_seg_2),
+    show.legend=F, size =1.25, color = procedure_colors$Surgical, linetype="solid")+
+  # line for total number of abortions over time
+  geom_line(data=proc_tot, 
+            aes(year, total, group = "year"),
+            size = 1.25, show.legend=F, linetype = "solid",
+            color= "gray")+
+  # dashed line for average number of abortions
+  # geom_line(data=proc_tot, 
+  #           aes(year, mean(total), group = "year"),
+  #           size = .35, show.legend=F, linetype = "dashed",
+  #           color= "gray")+
+  # 0 baseline on x axis
+  geom_segment(aes(x=2014, xend=2021,
+                   y = 0, yend=0),
+               size=.1, color="light gray")+
+  # horizontal grid lines 
+  geom_segment(aes(x=2014, xend=2021,
+                   y = 2000, yend=2000),
+               size=.3, color="gray 80", linetype = "dotted")+
+  geom_segment(aes(x=2014, xend=2021,
+                   y = 0, yend=0),
+               size=.1, color="light gray")+
+  geom_segment(aes(x=2014, xend=2021,
+                   y = 4000, yend=4000),
+               size=.3, color="gray 80", linetype = "dotted")+
+  geom_segment(aes(x=2014, xend=2021,
+                   y = 6000, yend=6000),
+               size=.3, color="gray 80", linetype = "dotted")+
+  geom_segment(aes(x=2014, xend=2021,
+                   y = 8000, yend=8000),
+               size=.3, color="gray 80", linetype = "dotted")+
+  scale_x_discrete(expand = expansion(add = 1.5))+
+  scale_x_continuous(breaks = c(2014,2015,2016,2017, 2018, 2019, 2020, 2021, 2022),
+                     limits = c(2014, 2022),
+                     labels = c("2014","2015","2016","2017", "2018", "2019",
+                                "2020", "2021", ""))+
+  scale_y_continuous(labels = scales::comma, 
+                     name = "Abortions")+
+  # annotations ####
+# total label
+annotate("text_box", x=2021, y = proc_tot$total[proc_tot$year == "2021"],
+         label = "All abortions", color = "gray", lineheight = 1,
+         width = unit(1.5, "inch"), hjust = 0, vjust = .5, box.color=panel_c, 
+         fill = panel_c, size = 4)+
+  # surgical label  
+  annotate("text_box", x=2021, y = pull(proc_19_21[proc_19_21$Procedure =="Surgical" & 
+                                                  proc_19_21$year=="2021" & proc_19_21$Count,3]),
+           label = surg_lab, color = panel_c, lineheight = 1,
+           width = unit(1.5, "inch"), hjust = 0, vjust = .75, box.color=panel_c, 
+           fill = panel_c, size = 4)+
+  # medical label  
+  annotate("text_box", x=2021, y = pull(proc_19_21[proc_19_21$Procedure =="Medical" & 
+                                                  proc_19_21$year=="2021" & proc_19_21$Count,3]),
+           label = med_lab, color = panel_c, lineheight = 1,
+           width = unit(1.5, "inch"), hjust = 0, vjust = .5, box.color=panel_c, 
+           fill = panel_c, size = 4)+
+  # suction curettage label
+  annotate("text_box", x=2018, 
+           y = pull(proc_14_18[proc_14_18$Procedure =="Suction Curettage"& 
+                                 proc_14_18$year=="2018" &proc_14_18$Count,3]),
+           label = sc_lab, color = panel_c, lineheight = 1,
+           hjust =1, vjust = 1.25, box.color=panel_c, 
+           fill = panel_c, size = 2.5, halign = 1)+
+  # surgical definition post 2018 label
+  annotate("text_box", x=2018, 
+           y = pull(proc_14_18[proc_14_18$Procedure =="Suction Curettage"& 
+                                 proc_14_18$year=="2018" &proc_14_18$Count,3]),
+           label = surg_def_lab, color = panel_c, lineheight = 1.2,
+           hjust =0, vjust = -.25, box.color=panel_c, 
+           fill = panel_c, size = 2.5, halign = 0,width = unit(1.5, "inch"))+
+  # vertical line denoting end of data with surgical subtypes
+  geom_segment(aes(x=2018,xend=2018, 
+                   y = 700+pull(proc_14_18[proc_14_18$Procedure =="Suction Curettage"& 
+                                             proc_14_18$year=="2018" & proc_14_18$Count,3]),
+                   yend=-700+pull(proc_14_18[proc_14_18$Procedure =="Suction Curettage"& 
+                                               proc_14_18$year=="2018" & proc_14_18$Count,3])),
+               color="dark gray", linetype = "solid",
+               size = .25, show.legend = F)+
+  # # non sc pre 2018 label
+  annotate("text_box", x=2018, 
+           y = pull(proc_14_18_surg_consol[proc_14_18_surg_consol$year == "2018" &
+                                             proc_14_18_surg_consol$Procedure == "Surgical" & 
+                                             proc_14_18_surg_consol$Count,3]),
+           label = non_sc_surg, color = panel_c, lineheight = 1,
+           width = unit(3.5, "inch"), hjust =1, vjust = -.05, box.color=panel_c, 
+           fill = panel_c, size = 2.5, halign = 1)+
+  #  theme adjustments ####  
+t_theme()+
+  theme(
+    #axis.line.y = element_line(color="light gray", size = .05),
+    panel.grid.major.y = element_blank(),
+      #panel.grid.major.y = element_blank(),
+      panel.grid.major.x = element_blank(),
+    axis.line = element_blank(),
+    axis.ticks = element_blank(),
+    axis.title.x = element_blank(),
+    axis.text = element_text(size = 7,
+                             color = "gray 55"),
+    axis.title.y = element_text(color = "gray55",
+                                  size = rel(.6), vjust = .6),
+    panel.background = element_rect(fill=panel_c),
+    plot.background = element_rect(fill = panel_c, 
+                                   color = panel_c,
+                                   size = .35),
+    
+    plot.title.position = "plot",
+    plot.margin = unit(c(.5, .5, .5, .5), "cm"),
+    # plot.caption = element_textbox_simple(family = "sans", size = 7,
+    #                                       color = "gray40", halign = 1,
+    #                                       lineheight = 1.2),
+    legend.position = "none"
+  )+
+  labs(
+    title = pct_title,
+    subtitle  = subtitle,
+    caption = "<br>**Abortion Data:** 'www.in.gov/health/vital-records/vital-statistics/terminated-pregnancy-reports/'<br>**Graphic:** Ted Schurter 2023")
+
+```
+
+### Data
+
+```{r, data: year, county}
+med_cng <- read_csv("Exported_Data/med_cng.csv")
+surg_cng <- read_csv("Exported_Data/surg_cng.csv")
+
+
+datatable(rbind(med_cng, surg_cng) %>% select(-pct_cng) %>% 
+            pivot_wider(names_from = Procedure,
+                        values_from = Count) %>% 
+            mutate(Total = Medical+Surgical),
+          colnames = c("Year", "Medical\nabortions", "Surgical\nabortions", "Total\nabortions"),
+          caption = htmltools::tags$caption(
+            style = 'caption-side: top; text-align: center;',
+            "Abortions in Indiana by year and procedure type 2014 to 2021.", style = "color:black"),
+          rownames=FALSE, 
+          filter = "top", 
+          extensions = c('Buttons', 'FixedColumns'),
+          options = list(pageLength=10, 
+                         scrollX=T,
+                         dom = 'Bfrtip',
+                         scrollY = '250px',
+                         buttons = c('csv', 'excel')
+                         #columnDefs = list(list(className = 'dt-center', targets = 0:4))
+          ))%>% 
+  formatRound(c("Medical", "Surgical", "Total"), digits = 0)
+
+```
+
+## {-}
+
+---
+
+
+#### Surgical abortion encompasses many procedures, sometimes called different names, used at different gestational ages and with varying degrees of complexity. The two surgical methods explicitly defined in the [reports](https://www.in.gov/health/vital-records/files/2017-Indiana-Terminated-Pregnancy-Report.pdf#page=30) are dilation and evacuation and suction curettage. They are differentiated by the methods used and the gestational ages when they occur. Like suction curettage, dilation and evacuation abortions utilize suction to empty the uterus but also tools like forceps and a curette; they occur later in a pregnancy, typically midway during the second trimester. Between 2014 and 2018, when Indiana stopped listing them separately, `r paste0(100*round(proc_14_18 %>% filter(Procedure != "Mifepristone Misoprostol") %>% group_by(Procedure) %>% summarise(tot = sum(Count)) %>% filter(Procedure == "Suction Curettage") %>% select(tot)/(proc_14_18 %>% ungroup() %>% filter(Procedure != "Mifepristone Misoprostol") %>% summarise(tot = sum(Count)) %>% select(tot)),3),"%")` of surgical abortions were suction curettage, `r paste0(100*round(proc_14_18 %>% filter(Procedure != "Mifepristone Misoprostol") %>% group_by(Procedure) %>% summarise(tot = sum(Count)) %>% filter(Procedure == "Dilation Evacuation") %>% select(tot)/(proc_14_18 %>% ungroup() %>% filter(Procedure != "Dilation Evacuation") %>% summarise(tot = sum(Count)) %>% select(tot)),3),"%")` were dilation and evacuation and the remaining fraction included both menstrual aspiration and 'other' categories. 
 
 
 ```{r import_data, include = F}
 # load data
 gp <- read_csv("Exported_Data/gest.csv")
 ```
-
-
-
 
 ```{r label_calculations}
 #  calculation objects for labels, titles ####
@@ -703,7 +586,7 @@ ed_lab <- c(
 panel_c <- "#fdfdf2"
 sc_c <- "#029ba2" 
 rx_c <- "#9db6c9"
-rx_c_txt <- "#9db6c9" 
+rx_c_txt <- "#91adc3" 
 de_c <- "#029ba2"
 de_c_txt <- "#029ba2" 
 body_text <- "gray30"
@@ -715,10 +598,10 @@ type_colors <- c("sc" = sc_c,
 
 ```{r titles_labels}
 # create titles and labels
-title <-  paste(
+title <-  paste0(
   "<span style = 'color:",body_text,";font-size:17pt'>Nearly all abortions in Indiana between 2014 and 2021 occured by 13 weeks of gestational age.</span>")
 #
-subtitle <- paste(
+subtitle <- paste0(
   "<span style  = 'color:",body_text,";'>In 2018 Indiana reduced the classification 
   of procedures in its annual terminated pregancy reports to</span>
   <span style = 'color:",rx_c_txt,";'>medical</span> or
@@ -728,21 +611,21 @@ subtitle <- paste(
   <span style = 'color:",sc_c,";'>Surgical abortion</span> encompasses many procedures, 
   sometimes called different names, used at different gestational ages and with 
   varying degrees of complexity. Indiana classifies menstrual aspiration, 
-  suction curettage, dilation and evacuation, and dilation and extraction as surgical.<br></span>")
+  suction curettage, and dilation and evacuation as surgical.<br></span>")
 #
-med_lab <- paste(
+med_lab <- paste0(
   "<span style = 'color:",rx_c,";'>Medical abortions</span>
   <span style = 'color:",body_text,";'>use medicine to end pregnancies during the 
   first 10 weeks of gestational age.</span>")
 #
 
-asp_lab <- paste(
+asp_lab <- paste0(
   "<span style = 'color:",sc_c,";'>Surgical: Aspiration abortions</span>
   <span style = 'color:",body_text,";'>involve opening the cervix and using a
   suction device to empty the uterus, generally in the first trimester and early 
   into the second.</span>")
 
-sc_lab <- paste(
+sc_lab <- paste0(
   "<span style = 'color:",sc_c,";'>Surgical: Suction curretage abortions</span>
   <span style = 'color:",body_text,";'>involve opening the cervix and using a
   suction device to empty the uterus. A curette may be used to scrape the walls 
@@ -750,39 +633,42 @@ sc_lab <- paste(
   into the second.</span>")
 
 # dc lab 
-dc_lab <- paste(
+dc_lab <- paste0(
   "<span style = 'color:",sc_c,";'>Surgical: Dilation and curettage abortions</span>
   involve opening the cervix and using a curette to scrape and empty the uterus, 
   generally in the first trimester and early into the second.</span>")
 #
-de_lab <- paste(
+de_lab <- paste0(
   "<span style = 'color:",sc_c,";'>Surgical: Dilation and evacuation (D&E) abortions</span>
    <span style = 'color:",body_text,";'>involve opening the cervix 
    and using a combination of methods, including medication and suction, and 
    tools like forceps and a curette, to end a pregnancy and empty the uterus,
    generally in the second trimester.</span>")
 
-dx_lab <- paste(
+dx_lab <- paste0(
   "<span style = 'color:",sc_c,";'>Surgical: Dilation and extraction (D&X) abortions</span>
   <span style = 'color:",body_text,";'>involve opening the cervix and removing the
   fetus through the birth canal, generally late in the second trimester and in 
   the third.</span>")
 
 #
-post_22_wk_lab <- paste(
-  "<span style = 'color:",body_text,";'>After 22 weeks, abortion is legal only to 
-  prevent serious health risk to, or save the life of, the mother; or if the fetus has 
-  been diagnosed with a lethal fetal anomaly.</span>")
+post_22_wk_lab <- paste0(
+  "<span style = 'color:",body_text,";'>After 22 weeks (gestational age), abortion is legal
+  only to prevent serious health risk to, or save the life of, the mother; or if the fetus has   been diagnosed with a lethal fetal anomaly.</span>")
 
 # #
-rx_lab <- paste(
+rx_lab <- paste0(
   "<span style = 'color:",rx_c_txt,";'>Medical abortions</span>
   <span style  = 'color:",body_text,";'>are
   <span style  = 'color:",rx_c_txt,";'>",tot_pct_rx,"%</span> of
   all abortions and prohibited after 10 weeks.</span>")
 ```
 
-```{r create_plot}
+## {.tabset}
+
+### Chart
+
+```{r create_plot, fig.width=10, fig.height=6}
 # assign plot to p 
 
 ggplot(gp)+
@@ -910,7 +796,7 @@ annotate("text_box",x=.5, y=-8,label = "0 to<br> 8 weeks",size = 2.5, hjust = 0,
 # first trimester
 geom_segment(x=.55, xend = 2.20, y = -14.5, yend = -14.5, color="light gray", size = 1.4)+
   # "1st trimester"
-  annotate("text_box",x=.55, y=-18.75,label = "1st trimester",size = 2.2, hjust = .045, 
+  annotate("text_box",x=.55, y=-18.75,label = "1st trimester (not to scale)",size = 2.2, hjust = .045, 
            color=body_text, box.color=NA, fill = NA, label.colour = panel_c, lineheight = 1)+
   # second trimester
   geom_segment(x=2.20, xend = 7.6, y = -14.5, yend = -14.5, color="dark gray", size = 1.4)+
@@ -968,295 +854,1483 @@ geom_segment(x=.55, xend = 2.20, y = -14.5, yend = -14.5, color="light gray", si
            label = dx_lab,
            size = 3, hjust = 0, color="black", box.color=panel_c, vjust = 1,
            fill = NA, label.colour = panel_c, lineheight = 1, width = unit(1.7, "inch"))+
+  # test label
+   # annotate("text_box",
+   #         x= -.4, y=-25.5,
+   #         #x=9.2, y=-21.5,
+   #         label = "Types<br>of<br>abortions",
+   #         size = 3, hjust = 0, color="black", box.color=panel_c, vjust = 1,
+   #         fill = NA, label.colour = panel_c, lineheight = 1, width = unit(1.7, "inch"))+
+  
   # hidden line used to ensure appropriate depth for labels
   geom_hline(x=0, xend=11.4, yintercept = -85, color = panel_c, size =1)
  
 ```
 
+### Data
 
-Abortion procedures over time {data-navmenu="Charts"}
-===================================== 
+```{r, gestation data table}
+gest <- read_csv("Exported_Data/raw_gest.csv")
 
 
-```{r include = F}
 
-knitr::opts_chunk$set(eval = T,
-                      echo = F,
-                      include = T,
-                      warning = F,
-                      dev = "png",
-                      dpi = 200,
-                      cache = FALSE,
-                      fig.align  = "left",
-                      fig.width  =  10,
-                      fig.height =  5.46,
-                      #fig.asp = 1.83,
-                      out.width  = "100%",
-                      out.height = "100%"
-                      )
-
+datatable(gest,
+          colnames = c("Year", "Gestational\nage in weeks", "Dilation\nand \nevacuation\nabortions", "Medication\nabortions", "Suction\ncurettage\nabortions", "Menstrual\naspiration\nabortions"),
+          caption = htmltools::tags$caption(
+            style = 'caption-side: top; text-align: center;',
+            "Abortions in Indiana by year, gestational age and procedure type 2014 to 2017.", style = "color:black"),
+          rownames=FALSE, 
+          filter = "top", 
+          extensions = c('Buttons', 'FixedColumns'),
+          options = list(pageLength=10, 
+                         scrollX=T,
+                         dom = 'Bfrtip',
+                         scrollY = '250px',
+                         buttons = c('csv', 'excel')
+                         #columnDefs = list(list(className = 'dt-center', targets = 0:4))
+          ))%>% 
+  formatRound(c("de", "rx", "sc"), digits = 0)
 ```
 
-```{r import_proc_data, echo=FALSE, include = F, message=F, warning=F}
+## {-}
 
-proc_14_18 <- read_csv("Exported_Data/procedure_14_18.csv")
-proc_19_21 <- read_csv("Exported_Data/procedure_19_21.csv")
-proc_14_18_consol <- read_csv("Exported_Data/procedure_14_18_consol.csv")
-proc_14_18_surg_consol <- read_csv("Exported_Data/proc_14_18_surg_consol.csv")
-proc_tot <- read_csv("Exported_Data/proc_tot.csv")
-med_cng <- read_csv("Exported_Data/med_cng.csv")
-surg_cng <- read_csv("Exported_Data/surg_cng.csv")
+---
 
-```
 
-```{r proc_line_segments}
-# medical segment start
-rx_seg_1 <-  proc_14_18 %>% filter(year == 2018) %>% 
-  filter (Procedure == "Mifepristone Misoprostol") %>% pull()
-# medical segment end
-rx_seg_2 <-  proc_19_21 %>% filter(year == 2019) %>% 
-  filter (Procedure == "Medical") %>% pull()
-# surgical segment start 
-sg_seg_1 <-  proc_14_18_consol %>% filter(year == 2018) %>% 
-  filter (Procedure == "Surgical") %>% pull()
-# surgical segment end
-sg_seg_2 <-  proc_19_21 %>% filter(year == 2019) %>% 
-  filter (Procedure == "Surgical") %>% pull()
+```{r echo=F}
+# proc_14_18 <- read_csv("Exported_Data/procedure_14_18.csv")
+# gp <- read_csv("Exported_Data/gest.csv")
+# proc_tot <- read_csv("Exported_Data/proc_tot.csv")
+# # calculate totals for gp df
+# tot <- sum(gp[,3])
 ```
 
 
-```{r assign_proc_colors}
-panel_c <- "#fdfdf2" 
-body_text <- "black"
-procedure_colors <- list(
-  "Medical" = "#9db6c9",
-  "Medical (Surgical)" = "#9db6c9",
-  "Mifepristone Misoprostol" = "#9db6c9",
-  "Surgical" = "#029ba2",
-  "Suction Curettage"  = "#029ba2",
-  "Dilation Evacuation" = "#029ba2",
-  "surgical other" = "#029ba2")
+#### While the legality of Indiana's new abortion ban and the legal status of mifepristone remain unresolved, abortion in Indiana remains legal through 22 weeks of gestational age. Total abortion increased `r paste0(round(((proc_tot$total[proc_tot$year == max(proc_tot$year)]- proc_tot$total[proc_tot$year == min(proc_tot$year)]) / proc_tot$total[proc_tot$year == max(proc_tot$year)])*100,1),"%")` between 2014 and 2021 but has fluctuated as much as `r paste0(round(proc_tot %>%  mutate (pct_nrm = ((total-mean(total))/total)*100) %>% arrange(desc(pct_nrm))  %>% select(pct_nrm) %>%  slice(1),2),"%")` above and `r paste0(abs(round(proc_tot %>% mutate (pct_nrm = ((total-mean(total))/total)*100) %>%arrange(pct_nrm)  %>% select(pct_nrm) %>% slice(1),2)),"%")` below the `r prettyNum(round(mean(proc_tot$total)), big.mark = ",",   big.interval = 3L)` annual average. Over eight years, the annual percentage increase has averaged `r paste0(round(sum(proc_tot$pct_cng, na.rm=T)/length(proc_tot$year),2),"%")`. 
 
+#### Much like the variation in annual abortion counts, monthly totals vary widely and swing as much as 20% from their eight-year average of `r round(mean(mnth$res))`. In 2019, September swung from `r mnth$res[mnth$year == 2019 & mnth$month == "September"]`, 18% below its average of `r mnth %>% filter(month == "September") %>% summarise(round(mean(res)))`, to `r round(mnth$res[mnth$year == 2020 & mnth$month == "September"])`, 11.7% above its average in 2020, a shift of 29.8%. 
+
+
+```{r import month data}
+mnth <- read_csv("Exported_Data/month_ab_IN_res_clean.csv")
 ```
 
-```{r proc_labels_annotations}
-surg_def_lab <- paste(
-  "<span style = 'color:",procedure_colors$'Suction Curettage',";'>Surgical procedures</span>
-  <span style = 'color:",body_text,";'>including</span>
-  <span style = 'color:",procedure_colors$'Suction Curettage',";'>menstrual 
-  aspiraiton, suction curetttage, dilation and evacuation, and 'surgical other.'</span>")
+```{r set month colors, order}
+# set colors 
 
-surg_def_lab <- paste(
-  "<span style = 'color:",body_text,";'>All</span>
-  <span style = 'color:",procedure_colors$'Suction Curettage',";'>surgical</span>
-  <span style = 'color:",body_text,";'>procedures including</span>
-  <span style = 'color:",procedure_colors$'Suction Curettage',";'>suction curettage</span>")
+# panel color
+panel_c <- "#fdfdf2"
 
-# medical line label
-med_lab <- paste(
-  "<span style = 'color:",procedure_colors$Medical,";'>Medical Procedures</span>")
+# monthly color 
+mc <- "#1a9641"
+avgc <- "#7b3294"
+# high average month 
+h_avgc <- "#006837"  
+# low average month
+l_avgc <- "#78c679"
+# avg month
+avg_mc <- "#af8dc3"
 
-# suction curettage label
-sc_lab <- paste(
-  "<span style = 'color:",procedure_colors$'Suction Curettage',";'>Suction curettage</span> 
-  <span style = 'color:",body_text,";'>only</span>")
+mnth$month <- factor(mnth$month, levels = c(
+  "January", "February", "March", "April", "May", "June", "July","August",
+  "September", "October", "November", "December"))
 
-# all surgical label
-surg_lab <- paste(
-  "<span style = 'color:",procedure_colors$'Suction Curettage',";'>Surgical Procedures</span>")
+# short month labels
+s_m_lab <-  c("January" = "Jan.",
+              "February" = "February",
+              "March" = "Mar.", 
+              "April" = "April", 
+              "May" = "May",
+              "June" = "June",
+              "July" = "July",
+              "August" = "Aug.",
+              "September" = "September",
+              "October" = "Oct.",
+              "November" = "Nov.",
+              "December" = "Dec.")
 
-# non sc surgical types label
-non_sc_surg <- paste(
-  "<span style = 'color:",procedure_colors$'Suction Curettage',";'>Surgical</span>
-  <span style = 'color:",body_text,";'>procedures except</span>
-  <span style = 'color:",procedure_colors$'Suction Curettage',";'>suction curetttage,</span>
-  <span style = 'color:",body_text,";'>including</span>
-  <span style = 'color:",procedure_colors$'Suction Curettage',";'>dilation and 
-  evacuation, 'medical (surgical)', menstrual aspiration, and 'surgical other.'</span>")
+# month labels colors 
 
-
-
+m_lab_c <- c("January"    = "gray70",
+             "February"   = l_avgc,
+             "March"     = "gray70",
+             "April"     = "gray70",
+             "May"       = "gray70",
+             "June"      = "gray70",
+             "July"      = "gray70",
+             "August"    = "gray70",
+             "September" = h_avgc,
+             "October"   = "gray70",
+             "November"  = "gray70",
+             "December"  = "gray70")
 ```
 
-```{r proc_titles_captions}
-pct_title <- paste(
-  "<span style = 'color:",procedure_colors$Medical,";'>Medical</span>
-  abortion procedures grew on average</span>
-  <span style = 'color:",procedure_colors$Medical,";'>",
-  paste(round(sum(med_cng$pct_cng, na.rm=T)/length(proc_tot$year),2),'%'),"</span>
-  annually from 2014 to 2021 and eclipsed</span>
-  <span style = 'color:",procedure_colors$Surgical,";'>surgical</span>
-  procedures, which declined on average</span>
-  <span style = 'color:",procedure_colors$Surgical,";'>",
-  paste(abs(round(sum(surg_cng$pct_cng, na.rm=T)/length(proc_tot$year),2)),"%"),
-  "</span>
-  annually, as the predominant abortion procedure in 2019. The rate for <span style 
-  = 'color:gray;'>all </span> abortions increased on average</span>
-  <span style = 'color:gray;'>",
-  round(sum(proc_tot$pct_cng, na.rm=T)/length(proc_tot$year),2),"%</span>
-  annually."
+## {.tabset}
+
+### Chart
+
+```{r, calculate percents, plot pct cng mean, fig.width=10, fig.height=5.3}
+# what is the percent above or below the average monthly total for each month?
+t <-  mnth %>% 
+  ungroup() %>% 
+  group_by(month) %>% 
+  mutate(mn_avg = mean(res),
+         dif_mn = res-mn_avg,
+         pct_df_m = (dif_mn/mn_avg)*100) 
+
+ggplot()+ theme_classic()+
+  # line for monthly totals
+  geom_segment(data = mnth,
+               aes(x=2013.5, xend = 2021,
+                   y = 0, yend = 0),
+               size = .3, color = "gray60")+
+  geom_line(data = mnth %>% 
+              ungroup() %>% 
+              group_by(month) %>% 
+              mutate(mn_avg = mean(res),
+                     dif_mn = res-mn_avg,
+                     pct_df_m = (dif_mn/mn_avg)*100),
+            aes(year, pct_df_m, group = month), 
+            size = .35, color = "gray90", show.legend = F)+
+  geom_line(data = mnth %>% 
+              ungroup() %>% 
+              group_by(month) %>% 
+              mutate(mn_avg = mean(res),
+                     dif_mn = res-mn_avg,
+                     pct_df_m = (dif_mn/mn_avg)*100) %>% filter(month == "September"),
+            aes(year, pct_df_m, group = month), 
+            size = .75, color = h_avgc, show.legend = F)+
+  geom_line(data = mnth %>% 
+              ungroup() %>% 
+              group_by(month) %>% 
+              mutate(mn_avg = mean(res),
+                     dif_mn = res-mn_avg,
+                     pct_df_m = (dif_mn/mn_avg)*100) %>% filter(month == "February"),
+            aes(year, pct_df_m, group = month), 
+            size = .75, color = l_avgc, show.legend = F)+
+  
+  geom_text_repel(data = mnth %>% 
+                    ungroup() %>% 
+                    group_by(month) %>% 
+                    mutate(mn_avg = mean(res),
+                           dif_mn = res-mn_avg,
+                           pct_df_m = (dif_mn/mn_avg)*100) %>% filter(year == 2021),
+                  aes(year, pct_df_m, label = s_m_lab),
+                  #xlim = c(2021.4),
+                  #point.padding = 1,
+                  nudge_y = 0, 
+                  nudge_x = .2, # .7
+                  #force = 2,
+                  color = m_lab_c, 
+                  segment.color = "gray75",
+                  size = rel(2.35), 
+                  fontface = "plain", 
+                  direction = "y",
+                  segment.size = 0.1,
+                  min.segment.length = 3,
+                  hjust = 0,
+                  seed = 2, 
+  )+
+  
+  geom_textbox(data = mnth %>% 
+                 ungroup() %>% 
+                 group_by(month) %>% 
+                 mutate(mn_avg = mean(res),
+                        dif_mn = res-mn_avg,
+                        pct_df_m = (dif_mn/mn_avg)*100),
+               aes(x= 2019.85, y = 15.15),
+               label = paste0("<span style = 'color:",h_avgc,"'>September</span> 
+                went from well **below** its monthly average in 2019 to well **above** it in 2020."),
+               label.colour = NA, fill = panel_c,
+               size = rel(3.25), color = "gray50", 
+               hjust = 1, box.color = NA)+
+  geom_textbox(data = mnth %>% 
+                 ungroup() %>% 
+                 group_by(month) %>% 
+                 mutate(mn_avg = mean(res),
+                        dif_mn = res-mn_avg,
+                        pct_df_m = (dif_mn/mn_avg)*100),
+               aes(x= 2019.1, y = -17.9),
+               label = paste0("In 2019, <span style = 'color:",h_avgc,"'>**September**</span> 
+                was", 
+                              round(abs(t$pct_df_m[t$year == 2019 & t$month == "September"])),
+                              "% below its annual average."),
+               label.colour = NA, fill = panel_c,
+               size = rel(2.5), color = "gray50", 
+               hjust = 0, box.color = NA)+
+  geom_segment(aes(
+    x = 2019.67, xend = 2019.95,
+    y = 13, yend = 11.95), 
+    color = "gray10", linewidth = .15)+
+  geom_textbox(
+    aes(x= 2013.5, y = 3.9),
+    label = "Above 0 = more than the monthly average.", 
+    label.colour = NA, fill = panel_c,
+    size = rel(2.25), color = "gray50", 
+    hjust = 0, box.color = NA,   width = unit(.6, "inch"))+
+  geom_textbox(
+    aes(x= 2013.5, y = -3.9),
+    label = "Below 0 = less than the monthly average.", 
+    label.colour = NA, fill = panel_c,
+    size = rel(2.25), color = "gray50", 
+    hjust = 0, box.color = NA,   width = unit(.6, "inch"))+
+  
+  
+  scale_y_continuous(limits = c(-20,20),
+                     breaks = c(-20, -10, 0, 10, 20),
+                     labels = c("-20%", "-10%", "0", "10%", "20%"),
+                     name = "Deviation<br>from<br>average")+
+  scale_x_continuous(limits = c(2013.5, 2022),
+                     breaks = seq(2013, 2022, by = 1),
+                     labels = c( "", "2014", "2015", "2016", "2017", "2018",
+                                 "2019", "2020", "2021", ""))+
+  t_theme()+
+  #facet_wrap(~ month, scales = "free")+
+  theme(
+    axis.text = element_text(color = "gray55",
+                             size  = rel(.95)),
+    strip.background = element_blank(),
+    strip.text = element_text(color = "gray35", hjust = 0),
+    panel.grid.major.y = element_blank(),
+    panel.background = element_rect(fill = panel_c,
+                                    color = panel_c),
+    plot.background = element_rect(fill = panel_c,
+                                   color = panel_c),
+    axis.title.y = element_markdown(color = "gray55",
+                                    size = rel(.6),
+                                    vjust = .60,
+                                    hjust = 1),
+    axis.title.x = element_blank()
+  )+
+  labs(title = paste0("The number of abortions to Indiana residents in a month fluctuates above 
+  and below its eight-year average, sometimes dramatically. Between 2014 and 
+  2021,<span style = 'color:",h_avgc,"'> ",
+                      month.name[as.numeric(t %>% mutate(ab_pct_cg = pct_df_m-lag(pct_df_m)) %>% 
+                                              arrange(desc(abs(ab_pct_cg))) %>% ungroup() %>% slice(1) %>% select(month))],"
+  </span>had the highest year-to-year change, shifting <span style = 'color:",h_avgc,"'>",
+                      round(t %>% mutate(ab_pct_cg = pct_df_m-lag(pct_df_m)) %>% arrange(desc(abs(ab_pct_cg))) %>% 
+                              ungroup() %>% slice(1) %>% select(ab_pct_cg)),
+                      "% </span>from 2019 to 2020. <span style = 'color:",l_avgc,"'> ",
+                      month.name[as.numeric(mnth %>% group_by(month) %>% mutate(mn_df = 100*(res-lag(res))/lag(res)) %>% ungroup() %>% 
+                                              group_by(month) %>% summarise(m = mean(mn_df, na.rm = T)) %>%  arrange(abs(m)) %>% select(month) %>% slice(1))],"
+  </span>had the lowest average annual change."),
+       
+       subtitle = "Each line shows how far a single month's abortion totals deviate
+  from the month's multi-year average.",      
+       caption = "<br>**Data:** 'www.in.gov/health/vital-records/vital-statistics/terminated-pregnancy-reports'<br>
+  **Graphic:** Ted Schurter 2023")  
+```
+
+### Data
+
+
+```{r month data table}
+
+mnth <- read_csv("Exported_Data/month_ab_clean.csv")
+
+
+mnth %>% 
+datatable(colnames = c("Year", "Month", "Resident\nabortions", "Non-resident\nabortions"),
+  caption = htmltools::tags$caption(
+          style = 'caption-side: top; text-align: center;',
+    "Abortion totals in Indiana by year and month 2014 to 2021.", style = "color:black"),
+          rownames=FALSE, 
+          filter = "top", 
+          extensions = c('Buttons', 'FixedColumns'),
+          options = list(pageLength=10, 
+                         scrollX=T,
+                         dom = 'Bfrtip',
+                         scrollY = '250px',
+                         buttons = c('csv', 'excel')
+          ))%>% 
+  formatRound(c("res", "nonres"), digits = 0)
+```
+
+## {-}
+
+---
+
+#### The variation is apparent when contrasting a month's totals to its eight-year average or to other years. 
+
+
+```{r faceted month by year, fig.width=10, fig.height=5.3}
+# set order of months
+mnth$month <- factor(mnth$month, levels = c(
+  "January", "February", "March", "April", "May", "June", "July","August",
+  "September", "October", "November", "December"))
+
+mnth2 <- mnth
+mnth2$m2 <- mnth2$month
+# remove original month column so new dataframe isn't faceted by it when month is called
+mnth2$month <- NULL
+
+mnth2$y2 <- mnth$year
+mnth2$month <- NULL
+mnth2$year <- NULL
+
+
+yr_tot_lab <- mnth %>% group_by(year) %>% 
+  mutate(annual = sum(res)) %>% 
+  ungroup() %>% 
+  mutate(mn_an = mean(annual),
+         lab = paste0(if_else(annual>mean(annual), "Above annual average", "Below annual average"))) %>% 
+  ungroup() %>% 
+  mutate(
+    pct = round((annual-mean(annual))/annual*100),
+    col = if_else(pct>0, "black", "red"))
+
+# create duplicate year column for faceting
+mnth2$y2 <- mnth$year
+mnth2$month <- NULL
+mnth2$year <- NULL
+
+mnth %>% group_by(month) %>% 
+  mutate(av = round(mean(res))) %>% 
+  ggplot()+ theme_classic()+
+  # lines for all months
+  geom_line(data = mnth2,
+            aes(m2, res, group = y2), color = "gray90", size = .2)+
+  # line for monthly average
+  geom_line(data = mnth %>% group_by(month) %>%
+              summarise(res = mean(res)) %>%
+              ungroup(),
+            aes(month, res, group = 1),  color = avgc, show.legend = F)+
+  # line for annual average
+  geom_segment(data = mnth %>%
+                 summarise(res = mean(res)) %>%
+                 ungroup(),
+               aes(x = 1, xend = 12,
+                   y = res, yend = res), size = .1, color = "gray30", 
+               #linetype = "dotted", 
+               show.legend = F)+
+  # line for monthly totals
+  geom_line(
+    aes(month, res, group = year), color = mc, show.legend = F)+
+  # label for monthly average
+  geom_text(data = mnth %>% filter( year == "2014"),
+            aes(x= 1.3, y = 560, label = "Monthly\naverage"),
+            size = rel(2), color = "gray50", hjust = 0, lineheight = .8, 
+            vjust = 1)+
+  # line for label for monthly average
+  geom_segment(data = mnth %>% filter( year == "2014"),
+               aes(x=1.1, xend = 1.1,
+                   y = 550, yend = 600),
+               size = .05, color = avgc)+
+  # total abortions for year
+  geom_richtext(data = yr_tot_lab,
+                aes(x= 8.2, y = 770, 
+                    label = paste0(pct,"% ",lab," ")),
+                label.colour = NA, fill = panel_c,
+                size = rel(2.15), color = yr_tot_lab$col, hjust = 0)+
+  # invisible mark to preserve equal y scale for each facet
+  geom_point(aes(x=1, y = 500), color = panel_c)+
+  scale_y_continuous(limits = c(400,800),
+                     breaks = c(400, 600, 800),
+                     labels = c("400", "600", "800"))+
+  scale_x_discrete(
+    breaks = c("January", "February", "March", "April","May", "June",
+               "July", "August", "September", "October", "November","December"),
+    labels = c("Jan.","Feb.","Mar.", "April", "May", "June", "July",
+               "Aug.", "Sept.", "Oct.", "Nov.", "Dec."))+
+  t_theme()+
+  facet_wrap(~ year, scales = "free")+
+  theme(
+    strip.background = element_blank(),
+    strip.text = element_text(color = "gray35", hjust = 0),
+    panel.grid.major.y = element_blank(),
+    panel.background = element_rect(fill = panel_c,
+                                    color = panel_c),
+    plot.background = element_rect(fill = panel_c,
+                                   color = panel_c),
+    axis.text = element_text(color = "gray55",
+                             size  = rel(.6)),
+    axis.title.y = element_blank(),
+    axis.title.x = element_blank(),
+    panel.border = element_rect(color = "gray90", fill = NA)
+  )+
+  labs(title = paste0("The individual <span style = 'color:",avgc,"'>monthly average</span> of Indiana resident abortions from 2014 to 2021 reveals general trends 
+  and how far a month’s<span style = 'color:",mc,"'> 
+  totals</span> differ from its average in a given year."),
+       subtitle = paste0("The average number of monthly abortions is ", 
+                         round(mean(mnth$res)),
+                         "; the average annual total is ",
+                         prettyNum(round(mnth %>% group_by(year) %>% summarise(tot = sum(res)) %>% summarise(mean(tot))), big.mark = ",", scientific = FALSE),"."),
+       caption = "<br>**Data:** 'www.in.gov/health/vital-records/vital-statistics/terminated-pregnancy-reports'<br>
+  **Graphic:** Ted Schurter 2023")
+```
+
+---
+
+
+```{r import per_cap dataframe}
+# import dataframe per_cap created using script 20221025_Indiana_abortion_2014_2021.R
+
+# convert GEOID to character upon import
+c <- cols_only(
+  year          = col_double(),
+  GEOID         = col_character(),
+  Name          = col_character(),
+  fem_pop       = col_double(),
+  Count         = col_double(),
+  rate          = col_double(),
+  yr_med        = col_double(),
+  annual_co_med = col_double(),
+  median        = col_double()
 )
 
-subtitle <- paste(
-  "<span style = 'color:",procedure_colors$Surgical,";'>Suction curettage</span><span style = 'color:",body_text,";'> can be identified as the most common</span><span style = 'color:",procedure_colors$Surgical,";'> surgical</span><span style = 'color:",body_text,";'> procedure until 2018 when Indiana consolidated all distinct</span><span style = 'color:",procedure_colors$Surgical,";'> surgical</span> procedures into one category.<br></span>")
+per_cap <- read_csv("Exported_Data/per_cap.csv",
+                     col_types = c)
+
+
+options(tigris_use_cache=TRUE)  # cache data
+
+counties <- counties("IN", cb = T) %>% select(GEOID, geometry)
+
+sf_per_cap <- st_sf(left_join(per_cap, counties))
+
+sf_per_cap <- sf_per_cap %>% select(c("Year"= "year", "County" = "Name", "Females of childbearing age" = "fem_pop", "Abortions" = "Count", "Rate" = "rate", "counties_average" = "yr_med", "county_average" = "annual_co_med", "GEOID" = "GEOID"))
 
 
 ```
 
-```{r proc_plot}
-p2 <- ggplot()+
-  # 2014:2018 medical data
-  geom_line(data=proc_14_18 %>% 
-              filter(Procedure =="Mifepristone Misoprostol"),
-            aes(year, Count, group=Procedure),
-            size = 1.25, color=procedure_colors$Medical,show.legend=F)+
-  # 2014:2018 suction curettage data
-  geom_line(data=proc_14_18 %>% 
-              filter(Procedure =="Suction Curettage"),
-            aes(year, Count, group=Procedure),
-            size = .5, linetype = "solid", show.legend=F,
-            color=procedure_colors$Surgical)+
-  # 2014:2018 surgical non suction-curettage 
-  geom_line(data=proc_14_18_surg_consol %>% filter(Procedure=="Surgical"),
-            aes(year, Count, group=Procedure),
-            size = .5, linetype = "dashed", show.legend=F,
-            color=procedure_colors$Surgical)+
-  # medical line with data from 2019:2021
-  geom_line(data=proc_19_21 %>% filter(Procedure == "Medical"), 
-            aes(year, Count, group=Procedure),
-            size = 1.25, show.legend=F, color=procedure_colors$Medical)+
-  # surgical line with data from 2019:2021
-  geom_line(data=proc_19_21 %>% filter(Procedure == "Surgical"), 
-            aes(year, Count, group=Procedure),
-            color=procedure_colors$Surgical,
-            size = 1.25, show.legend=F, linetype = "solid")+
-  # line segment to connect medical lines from 2018:2019
+#### Abortion rates also vary by county. `r str_to_sentence(english(round(per_cap %>% filter(annual_co_med < mean(per_cap$rate, na.rm = T)) %>% group_by(Name) %>% nrow()/(92*8)*100)))` counties out of `r per_cap %>% filter(year ==2014) %>% nrow()` had rates below the average county rate of `r round(mean(per_cap$rate, na.rm=T),2)` abortions per 1,000 women of childbearing age (10 to 49 years-old). At `r per_cap %>% arrange(desc(rate)) %>% select(Name, annual_co_med) %>% slice(1) %>% pull(2)`, `r per_cap %>% arrange(desc(rate)) %>% select(Name, annual_co_med) %>% slice(1) %>% pull(1)` County's average rate is `r round(per_cap %>% arrange(desc(annual_co_med)) %>% select(Name, rate) %>% slice(1) %>% pull(2)/mean(per_cap$rate, na.rm=T))` times higher than the state's county average; `r per_cap %>% arrange((annual_co_med)) %>% select(Name, annual_co_med) %>% slice(1) %>% pull(1)` County has the lowest average rate at `r per_cap %>% arrange((annual_co_med)) %>% select(Name, annual_co_med) %>% slice(1) %>% pull(2)` abortions per 1,000 women of childbearing age. 
+
+##  {.tabset}
+
+### Map
+   
+```{r fig.width = 8, fig.height=5, fig.align='center' }
+
+bins <- c(0,1,2,3,4,5,6,7,8,12) # set custom bins to eliminate bins w/no values
+
+pal <- colorBin("BrBG", domain = per_cap$county_average, bins = bins, reverse = T,
+                na.color = NA)
+
+base_url = '"https://raw.githubusercontent.com/tedschurter/indiana_abortion/main/Plots/County_Plots/20221028_'
+end_url = '.png"'
+
+leaflet(sf_per_cap,
+    options = leafletOptions(minZoom = 6.5,
+                             maxZoom = 6.5)) %>% 
+  fitBounds(39.767, 86.157, 39.867, 86.057) %>% 
+  addProviderTiles(provider=providers$CartoDB.Positron) %>% 
+  setView( lat=39.76846846959756, lng=-86.4979434376352, zoom=6.5) %>%
+  addPolygons(
+    stroke = T, 
+    fillOpacity = 1,
+    weight = 1,
+    color = "black",
+    fillColor = ~pal(county_average),
+    label = ~ County,
+    popup = paste0("<img src = ", base_url,sf_per_cap$GEOID,end_url, "width=300 height=211px >")
+    ) %>% 
+  addLegend(pal = pal, 
+            values = ~county_average, 
+            opacity = 1, 
+            position = "bottomleft", 
+            title = "Average abortion rate<br>per 1,000 females of<br> childbearing age 2014 to <br> 2021.<br><br>Click map to view county<br>rates.<br><br>",
+            labels = c(0 == "zero")
+            ) 
+
+
+```
+
+### Data
+
+
+```{r, county count and rate data table}
+per_cap <- per_cap %>% 
+  select(year, Name, fem_pop, Count, rate)
+
+
+datatable(per_cap, 
+          colnames = c("Year", "County", "Female\nchildbearing age\npopulation", "Number of\nabortions", "Abortion\nrate\nper 1,000"),
+          caption = htmltools::tags$caption(
+            style = 'caption-side: top; text-align: center;',
+    "Abortion rate in Indiana by year and county 2014 to 2021.", style = "color:black"),
+          rownames=FALSE, 
+          filter = "top", 
+          extensions = c('Buttons', 'FixedColumns'),
+          options = list(pageLength=10, 
+                         scrollX=T,
+                         dom = 'Bfrtip',
+                         scrollY = '250px',
+                         buttons = c('csv', 'excel')
+                         #columnDefs = list(list(className = 'dt-center', targets = 0:4))
+                         )) %>% 
+  formatRound(c('fem_pop', "Count"), digits = 0)
+
+```
+
+## {-}
+
+---
+
+```{r}
+ab_age <- read_csv("Exported_Data/ab_age.csv")
+```
+
+
+#### The age at which women get abortions has remained fairly consistent since 2014. Women in their 20s get `r paste0(round(100*(ab_age %>% group_by(age) %>% filter(age == "20-24" | age == "25-29" ) %>% ungroup() %>%  summarise(sum(count)))/(ab_age %>% ungroup() %>% summarise(sum(count)))),"%")` of all abortions and those between 20 and 34 years-old get `r round(100*(ab_age %>% group_by(age) %>% filter(age == "20-24" | age == "25-29" | age == "30-34") %>% ungroup() %>%  summarise(sum(count)))/(ab_age %>% ungroup() %>% summarise(sum(count))))`%. Tracking changes in abortion among the very young is difficult due to inconsistencies in the reports' categorization of those under 16 years-old. In some years, the age ranges start as young as nine, while in others, all abortions for those under 16 are grouped in the same category. There was an average of `r round(ab_age %>% filter(age == "12-14" | age == "10-14" | age == "9-13") %>% ungroup() %>%  summarise(mean(count)))` abortions annually by nine to 14 year-olds, `r round(ab_age %>% filter(age == "12-14" | age == "10-14" | age == "9-13") %>% ungroup() %>%  summarise(sum(count))/ab_age %>%filter(year != 2020 & year != 2021) %>% ungroup() %>% summarise(sum(count))*100,2)`% of all abortions, between 2014 and 2019.  
+
+
+```{r age colors, captions, titles}
+# titles, labels and captions ####
+
+ab_age <- read_csv("Exported_Data/ab_age.csv")
+
+ab_age$age <- factor(ab_age$age,
+                     levels = 
+                       c("9-13",  
+                         "10-14", 
+                         "12-14",
+                         "15-17",
+                         "< 16",
+                         "16-17",
+                         "18-19",
+                         "20-24",
+                         "25-29",
+                         "30-34",
+                         "35-39",
+                         "40-44",
+                         "45"),
+                     ordered = T)
+#
+title <- paste0("Women in their 20s accounted for ",
+                round(100*(ab_age %>% group_by(age) %>% filter(age == "20-24" | age == "25-29" ) %>% 
+                ungroup() %>%  summarise(sum(count)))/(ab_age %>% ungroup() %>% summarise(sum(count)))),
+                "% of all abortions from 2014 to 2021, while those between 20 and 34 years old made 
+                up ",
+                round(100*(ab_age %>% group_by(age) %>% filter(age == "20-24" | age == "25-29" | 
+                age == "30-34") %>% ungroup() %>%  summarise(sum(count)))/
+                (ab_age %>% ungroup() %>% summarise(sum(count)))),
+                "%.")
+subtitle <- paste0("The consolidation of the youngest age ranges starting in 2020 obscures the incidence of
+            abortion for the very young. There was an average of ",
+            round(ab_age %>% filter(age == "12-14" | age == "10-14" | age == "9-13") %>% ungroup()
+            %>%  summarise(mean(count))),
+            " abortions annually for nine to 14 year-olds from 2014 to 2019, ",
+            round(ab_age %>% filter(age == "12-14" | age == "10-14" | age == "9-13") %>% ungroup() %>%  summarise(sum(count))/
+            ab_age %>%filter(year != 2020 & year != 2021) %>% ungroup() %>% summarise(sum(count))*100,2),
+            "% of the total.<br>")
+
+#
+y_labs <- c(
+    "9-13",  
+    "10-14", 
+    "12-14",
+    "15-17",
+    "< 16",
+    "16-17",
+    "18-19",
+    "<span style='color:gray25;'>**20-24**</span>",
+    "<span style='color:gray25;'>**25-29**</span>",
+    "30-34",
+    "35-39",
+    "40-44",
+    "45 and up ")
+```
+
+## {.tabset}
+
+### Chart
+
+```{r abortion by mother age, year, fig.width=10}
+ggplot(ab_age) + 
+  geom_tile(aes(as.factor(year), age, fill = pct, width = 1),
+            color = NA)+
+  scale_fill_distiller(palette = "Greens",
+                       direction = 0,
+                       breaks = c(10, 20, 30),
+                       labels = c("10%","20%","30%"))+
+  scale_y_discrete(labels = y_labs,
+                   name = "Age",)+
+  scale_x_discrete(limits = factor(c(2014:2022)),
+                   breaks = c(2014, 2015, 2016,2017,2018,2019,2020,
+                              2021, 2022),
+                   labels = c("2014", "2015", "2016","2017","2018","2019","2020",
+                              "2021", "")
+  )+
+  labs(title = title,
+       subtitle = subtitle,
+       fill = "Percent of\nabortions",
+       caption = "<br>**Data:** 'www.in.gov/health/vital-records/vital-statistics/terminated-pregnancy-reports'<br>
+  **Graphic:** Ted Schurter 2023")+
+  guides(fill=guide_colourbar(title.position = "bottom"))+ #.85
+  # line marking 14 and under 2019
   geom_segment(aes(
-    x = 2018, xend = 2019,
-    y = rx_seg_1, yend = rx_seg_2),
-    show.legend=F, size = 1.25, color = procedure_colors$Medical)+
+    x = 6.55, xend = 6.55,
+    y = .5, yend = 3.4),
+    color = "gray85", linewidth = .25)+
+  geom_text(aes(
+    x = 6.65, y = 2),
+    color = "gray55", size = rel(2.75), hjust = 0, fontface = "plain", lineheight = .9,
+    label = paste0("Nine to 14 year-olds had\n", round(ab_age %>% filter(age == "12-14" | age == "10-14" | age == "9-13") %>% ungroup() %>%  summarise(sum(count))/
+                                                         ab_age %>%filter(year != 2020 & year != 2021) %>% ungroup() %>% summarise(sum(count))*100,2),
+                   "% of all abortions from\n2014 to 2019."))+
+  # line marking 20-29 
   geom_segment(aes(
-    x = 2018, xend = 2019,
-    y = sg_seg_1, yend = sg_seg_2),
-    show.legend=F, size =1.25, color = procedure_colors$Surgical, linetype="solid")+
-  # line for total number of abortions over time
-  geom_line(data=proc_tot, 
-            aes(year, total, group = "year"),
-            size = .35, show.legend=F, linetype = "solid",
-            color= "gray")+
-  # dashed line for average number of abortions
-  # geom_line(data=proc_tot, 
-  #           aes(year, mean(total), group = "year"),
-  #           size = .35, show.legend=F, linetype = "dashed",
-  #           color= "gray")+
-  # 0 baseline on x axis
-  geom_segment(aes(x=2014, xend=2021,
-                   y = 0, yend=0),
-               size=.1, color="light gray")+
-  # horizontal grid lines 
-  geom_segment(aes(x=2014, xend=2021,
-                   y = 4000, yend=4000),
-               size=.15, color="gray 80", linetype = "dotted")+
-  geom_segment(aes(x=2014, xend=2021,
-                   y = 8000, yend=8000),
-               size=.15, color="gray 80", linetype = "dotted")+
-  scale_x_discrete(expand = expansion(add = 1.5))+
-  scale_x_continuous(breaks = c(2014,2015,2016,2017, 2018, 2019, 2020, 2021, 2022),
-                     limits = c(2014, 2022),
-                     labels = c("2014","2015","2016","2017", "2018", "2019",
-                                "2020", "2021", ""))+
-  scale_y_continuous(labels = scales::comma)+
-  # annotations ####
-# total label
-annotate("text_box", x=2021, y = proc_tot$total[proc_tot$year == "2021"],
-         label = "All Procedures", color = "gray", lineheight = 1,
-         width = unit(1.5, "inch"), hjust = 0, vjust = .5, box.color=panel_c, 
-         fill = panel_c, size = 4)+
-  # surgical label  
-  annotate("text_box", x=2021, y = pull(proc_19_21[proc_19_21$Procedure =="Surgical" & 
-                                                  proc_19_21$year=="2021" & proc_19_21$Count,3]),
-           label = surg_lab, color = panel_c, lineheight = 1,
-           width = unit(1.5, "inch"), hjust = 0, vjust = .5, box.color=panel_c, 
-           fill = panel_c, size = 4)+
-  # medical label  
-  annotate("text_box", x=2021, y = pull(proc_19_21[proc_19_21$Procedure =="Medical" & 
-                                                  proc_19_21$year=="2021" & proc_19_21$Count,3]),
-           label = med_lab, color = panel_c, lineheight = 1,
-           width = unit(1.5, "inch"), hjust = 0, vjust = .5, box.color=panel_c, 
-           fill = panel_c, size = 4)+
-  # suction curettage label
-  annotate("text_box", x=2018, 
-           y = pull(proc_14_18[proc_14_18$Procedure =="Suction Curettage"& 
-                                 proc_14_18$year=="2018" &proc_14_18$Count,3]),
-           label = sc_lab, color = panel_c, lineheight = 1,
-           hjust =1, vjust = 1.25, box.color=panel_c, 
-           fill = panel_c, size = 2.5, halign = 1)+
-  # surgical definition post 2018 label
-  annotate("text_box", x=2018, 
-           y = pull(proc_14_18[proc_14_18$Procedure =="Suction Curettage"& 
-                                 proc_14_18$year=="2018" &proc_14_18$Count,3]),
-           label = surg_def_lab, color = panel_c, lineheight = 1.2,
-           hjust =0, vjust = -.25, box.color=panel_c, 
-           fill = panel_c, size = 2.5, halign = 0,width = unit(1.5, "inch"))+
-  # vertical line denoting end of data with surgical subtypes
-  geom_segment(aes(x=2018,xend=2018, 
-                   y = 700+pull(proc_14_18[proc_14_18$Procedure =="Suction Curettage"& 
-                                             proc_14_18$year=="2018" & proc_14_18$Count,3]),
-                   yend=-700+pull(proc_14_18[proc_14_18$Procedure =="Suction Curettage"& 
-                                               proc_14_18$year=="2018" & proc_14_18$Count,3])),
-               color="dark gray", linetype = "solid",
-               size = .25, show.legend = F)+
-  # # non sc pre 2018 label
-  annotate("text_box", x=2018, 
-           y = pull(proc_14_18_surg_consol[proc_14_18_surg_consol$year == "2018" &
-                                             proc_14_18_surg_consol$Procedure == "Surgical" & 
-                                             proc_14_18_surg_consol$Count,3]),
-           label = non_sc_surg, color = panel_c, lineheight = 1,
-           width = unit(3.5, "inch"), hjust =1, vjust = -.05, box.color=panel_c, 
-           fill = panel_c, size = 2.5, halign = 1)+
-  #  theme adjustments ####  
-t_theme()+
+    x = 8.55, xend = 8.55,
+    y = 7.5, yend = 9.4),
+    color = "gray85")+
+  geom_text(aes(
+    x = 8.65, y = 8.5),
+    color = "gray25", size = rel(3.65), hjust = 0, fontface = "plain", lineheight = .9,
+    label = paste0(round(100*(ab_age %>% group_by(age) %>% filter(age == "20-24" | age == "25-29" ) %>% 
+                                ungroup() %>%  summarise(sum(count)))/(ab_age %>% ungroup() %>% summarise(sum(count)))),
+                   "% of\nall abortions"))+
+  # bottom x axis line
+  geom_segment(aes(
+    x = 0, xend = 8.5,
+    y = .1, yend = .1),
+    color = "gray85", linewidth = .25)+
+  t_theme()+
   theme(
-    #axis.line.y = element_line(color="light gray", size = .05),
+    axis.text.y   = element_markdown(color = "dark gray", size = 8),
+    #axis.title  = element_blank(),
+    axis.title.x  = element_blank(),
+    axis.ticks  = element_blank(),
+    axis.line.y   = element_line(color = "light gray", size = .25),
+    plot.background  = element_rect(color = NA, fill  = panel_c),
+    panel.background = element_rect(color = NA, fill = panel_c),
     panel.grid.major.y = element_blank(),
-      #panel.grid.major.y = element_blank(),
-      panel.grid.major.x = element_blank(),
+    panel.grid.minor.y = element_blank(),
+    legend.background = element_rect(color = NA, fill = NA),
+    legend.text = element_text(colour="gray40", size = 7),
+    legend.title = element_text(colour="gray40", size = 8),
+    legend.direction = "vertical",
+    legend.position = c(.95, .2), # c(.78,1.085)
+    plot.title = element_textbox_simple(size = rel(1.5), color = "gray25", 
+                                        hjust = 0,lineheight = 1, family = "serif", face = "plain", 
+                                        margin = unit(c(0, .2, 6, 0), "pt")),
+    
+  )
+```
+
+
+### Data
+
+```{r, age data table}
+ab_age %>% mutate(pct = pct/100) %>% select(-num) %>% select(c(year, age, count, pct,)) %>% 
+datatable(colnames = c("Year", "Age", "Count of\nabortions", "Percent\nby year"),
+          caption = htmltools::tags$caption(
+            style = 'caption-side: top; text-align: center;',
+    "Abortion totals in Indiana by year, age of mother 2014 to 2021.", style = "color:black"),
+         
+          
+          rownames=FALSE, 
+          filter = "top", 
+          extensions = c('Buttons', 'FixedColumns'),
+          options = list(pageLength=10, 
+                         scrollX=T,
+                         dom = 'Bfrtip',
+                         scrollY = '250px',
+                         buttons = c('csv', 'excel')
+                         #columnDefs = list(list(className = 'dt-center', targets = 0:3))     
+                         )) %>%
+  formatPercentage('pct', 2) %>% 
+  formatRound(c("count"), digits = 0)
+```
+
+## {-}
+
+---
+
+
+```{r import data for abortion totals and age data}
+# 2020-2021 population totals ####
+# categorical variables (age, sex) were not available via the api for 2021. found 
+# them elsewhere, though as  csv:
+# https://www2.census.gov/programs-surveys/popest/datasets/2020-2021/counties/asrh/cc-est2021-agesex-18.csv
+# 
+# from their file layout document regarding years:
+# https://www2.census.gov/programs-surveys/popest/technical-documentation/file-layouts/2020-2021/cc-est2021-agesex.pdf
+#   "The key for YEAR is as follows:
+#    1 = 4/1/2020 population estimates base
+#    2 = 7/1/2020 population estimate
+#    3 = 7/1/2021 population estimate"
+
+# create vector of ages needed
+ages <- c("AGE2024_FEM", "AGE2529_FEM", "AGE3034_FEM")
+
+# import data from census.gov
+pop_data <- read_csv("https://www2.census.gov/programs-surveys/popest/datasets/2020-2021/counties/asrh/cc-est2021-agesex-18.csv")
+
+# filter to ages of 20:34-year-old females in 2021
+pop_1 <- pop_data  %>% 
+  select(c(county=CTYNAME,year=YEAR, paste(ages), COUNTY, STATE)) %>%  # select 
+  # age groups for females of childbearing age only: 10-49
+  filter(year != 1) %>% # filter out unnecessary estimate from April 2020 
+  mutate(
+    Name = str_extract_all(county, "(?<=^).*(?=\\s\\bCounty)"), # clean up county name
+    year = if_else(year == 2, 2020, 2021), # assign right year
+    GEOID = str_c(STATE, COUNTY)) %>% # combine STATE, YEAR FOR GEOID 
+  pivot_longer(3:5, names_to = NULL, values_to = "fem_pop") %>% 
+  group_by(Name, year, GEOID) %>% 
+  summarise(fem_pop = sum(fem_pop)) %>%  # add populations for age groups only
+  select(year, GEOID, Name, fem_pop) %>% 
+  filter(year == 2021) %>% 
+  ungroup()
+
+# import count for all women of child bearing age in county
+
+all_ages <- "POPEST_FEM"
+#c("AGE1519_FEM","AGE2024_FEM","AGE2544_FEM","AGE4549_FEM")
+pop_2 <- pop_data  %>% 
+  select(c(county=CTYNAME,year=YEAR, paste(all_ages), COUNTY, STATE)) %>%  # select 
+  # age groups for females of childbearing age only: 10-49
+  filter(year != 1) %>% # filter out unnecessary estimate from April 2020 
+  mutate(
+    Name = str_extract_all(county, "(?<=^).*(?=\\s\\bCounty)"), # clean up county name
+    year = if_else(year == 2, 2020, 2021), # assign right year
+    GEOID = str_c(STATE, COUNTY)) %>% # combine STATE, YEAR FOR GEOID 
+  pivot_longer(3, names_to = NULL, values_to = "fem_pop") %>% 
+  group_by(Name, year, GEOID) %>% 
+  summarise(all_age = sum(fem_pop)) %>%  # add populations for age groups only
+  select(year, GEOID, Name, all_age) %>% 
+  filter(year == 2021) %>% 
+  ungroup() %>% 
+  select(-year)
+
+
+# NEW ADDITION: CREATE COLUMN FOR CBA WOMEN
+
+cba_ages <- c("AGE1014_FEM", "AGE1519_FEM","AGE2024_FEM","AGE2544_FEM","AGE4549_FEM")
+pop_3 <- pop_data  %>% 
+  select(c(county=CTYNAME,year=YEAR, paste(cba_ages), COUNTY, STATE)) %>%  # select 
+  # age groups for females of childbearing age only: 10-49
+  filter(year != 1) %>% # filter out unnecessary estimate from April 2020 
+  mutate(
+    Name = str_extract_all(county, "(?<=^).*(?=\\s\\bCounty)"), # clean up county name
+    year = if_else(year == 2, 2020, 2021), # assign right year
+    GEOID = str_c(STATE, COUNTY)) %>% # combine STATE, YEAR FOR GEOID 
+  filter(year == 2021) %>% 
+  pivot_longer(cols = c(3:7), names_to = NULL, values_to = "cba_pop") %>% 
+  group_by(Name, year, GEOID) %>% 
+  summarise(cba_age = sum(cba_pop)) %>%  # add populations for age groups only
+  select(year, GEOID, Name, cba_age) %>% 
+  ungroup() %>% 
+  select(-year)
+#
+# check for NA's
+# sum(is.na( pop_1)) # returns 0
+# sum(is.na( pop_2)) # returns 0
+
+# add fem_rte column for percent of population 20-34-years old; remove year
+pop <- left_join(pop_1, pop_2, by = c("Name", "GEOID")) %>% 
+   select(-year) 
+
+pop <- full_join(pop, pop_3, by = c("Name", "GEOID")) %>%
+  mutate(fem_rte = round(fem_pop/all_age,2)*1000)
+
+
+#sum(is.na(pop$fem_rte)) # 0
+
+# import 2021 abortion totals
+ab <- read_csv("Exported_Data/2021_abortion_count.csv")
+
+#sum(is.na(ab$Count))
+
+# convert ab$name to list from character
+ab$Name <- as.list(ab$Name)
+
+# join to population totals
+pop_ab <- left_join(pop, ab, by = c("Name" = "Name")) 
+
+# check for NAs 
+#anyNA(pop_ab) # returns TRUE
+
+#which(is.na(pop_ab), arr.ind=TRUE)
+
+#pop_ab[17,] %>% View 
+
+# where is the problem
+
+#anti_join(pop, ab, by = c("Name" = "Name")) %>% View  # DeKalb
+#anti_join(ab, pop, by = c("Name" = "Name")) %>% View  # De Kalb
+
+# De Kalb; in row 15 of ab dataframe needs to be replaced with DeKalb then re-join 
+# reimport ab - need Name column to be list again
+
+ab <- read_csv("Exported_Data/2021_abortion_count.csv")
+
+# rename Dekalb
+ab[15,1] <- "DeKalb"
+
+# convert ab$name to list
+ab$Name <- as.list(ab$Name)
+
+# create new dataframe and calculate rate per 1000
+pop_ab <- left_join(pop, ab, by = c("Name" = "Name")) %>%
+  mutate(rate = round(1000*(Count/cba_age),1)) 
+
+#anyNA(pop_ab) # FALSE
+
+
+#clean up 
+rm(pop, pop_1, pop_2, pop_data, ab)
+
+```
+
+```{r add county geometry, convert to sf, calculate IQR}
+options(tigris_use_cache=TRUE)  # cache data
+
+# import geometry for counties and GEOID
+counties <- counties("IN", cb = T) %>% select(NAME, geometry)
+#colnames(counties)  <- c("Name", "geometry")
+
+pop_ab$Name <- as.character(pop_ab$Name)
+
+# join county geometry to dataframe
+pop_ab <- left_join(pop_ab, counties, by= c("Name" ="NAME"))
+
+pop_ab <- st_sf(pop_ab)
+
+# what are the ranges for our data?
+
+#IQR for rate and fem_rte
+pop_ab_r_iqr <- IQR(pop_ab$rate) 
+#pop_ab_r_iqr
+pop_ab_f_iqr <- IQR(pop_ab$fem_rte) 
+```
+
+```{r}
+pop_ab_f <- bi_class(pop_ab %>% filter(rate >= quantile(pop_ab$rate)[2] - (pop_ab_r_iqr*1.5), 
+                                       rate <= quantile(pop_ab$rate)[3] + (pop_ab_r_iqr*1.5),
+                                       fem_rte  >= quantile(pop_ab$fem_rte)[2] - (pop_ab_f_iqr*2), 
+                                       fem_rte  <= quantile(pop_ab$fem_rte)[3] + (pop_ab_f_iqr*2)),
+                     x = fem_rte, y = rate, style = "jenks", dim = 3, keep_factors = T)
+
+
+
+# use anti-join to create dataframe of the columns that were filtered out and then 
+# use case_when to create bi_class rating using breaks from bi_scale package
+
+# generate breaks
+# bi_class_breaks(pop_ab_f, x = fem_rte, y = rate, style = "jenks", dim = 3)
+
+# $bi_x
+# [1] "130-160" "160-180" "180-230"
+# 
+# $bi_y
+# [1] "0-1.7" "1.7-3.2" "3.2-5"  
+
+
+pop_ab_f$geometry <- NULL
+pop_ab$geometry <- NULL
+
+ol <- anti_join(pop_ab, pop_ab_f) %>% 
+  mutate(bi_class = case_when(
+    fem_rte < 160 ~ "1-",
+    fem_rte %in% 160:180 ~ "2-",
+    fem_rte > 180 ~ "3-"))%>% 
+  mutate(bi_class = case_when(
+    rate < 1.7 ~ paste0(bi_class,"1"),
+    rate > 1.71 & rate < 3.2 ~ paste0(bi_class, "2"),
+    rate > 3.3 ~ paste0(bi_class, "3")))
+
+# join ol (outlier) dataframe to dataframe with outliers removed
+pop_ab <- full_join(pop_ab_f, ol)
+
+# add geometry back to dataframe
+pop_ab <- left_join(pop_ab, counties, by= c("Name" ="NAME"))
+
+pop_ab <- st_sf(pop_ab)
+
+pop_ab_no_geo <- pop_ab
+
+pop_ab_no_geo$geometry <- NULL
+```
+
+#### Though women in the 20 to 34 year-old age range get the most abortions, a high rate of women in that range within a county doesn't necessarily translate into a high county  abortion rate. Of the `r broman::spell_out(pop_ab %>% filter(bi_class == '3-3' | bi_class == '3-2' | bi_class == '3-1') %>% nrow(), capitalize = T)` counties with high rates of 20 to 34 year-old women in 2021, `r broman::spell_out(pop_ab %>% filter(bi_class == '3-3') %>% nrow(), capitalize = FALSE)` have high rates of abortion, `r broman::spell_out(pop_ab %>% filter(bi_class == '3-2') %>% nrow(), capitalize = FALSE)` have medium rates and `r broman::spell_out(pop_ab %>% filter(bi_class == '3-1') %>% nrow(), capitalize = FALSE)` have low rates. Among the `r broman::spell_out(pop_ab %>% filter(bi_class == '1-1' | bi_class == '1-2' | bi_class == '1-3') %>% nrow(), capitalize = T)` counties with low rates of 20 to 34 year-olds, `r broman::spell_out(pop_ab %>% filter(bi_class == '1-3') %>% nrow(), capitalize = FALSE)` has a high abortion rate, `r pop_ab %>% filter(bi_class == '1-2') %>% nrow()` have medium abortion rates and `r pop_ab %>% filter(bi_class == '1-1') %>% nrow()` have low abortion rates.
+
+
+```{r create legend}
+panel_c <- "#fdfdf2"
+
+
+legend <- bi_legend(pal = "DkCyan",
+                    dim = 3,
+                    xlab = "  Rate 20-34 females ",
+                    ylab = "  Abortion rate",
+                    size = 8,)+
+  theme(
+    plot.background = element_rect(fill = panel_c, color = panel_c,),
+    panel.background = element_rect(fill = panel_c)
+  )
+```
+
+```{r import age abortion data for headline data}
+# import abortion age data for headline purposes
+ab_age <- read_csv("Exported_Data/ab_age.csv")
+```
+
+```{r create x and y coordinates for county labels}
+# create x and y label coordinates ####
+# low low classification
+ll <- pop_ab %>% filter(bi_class == "1-1") %>% slice(6) %>%  
+  # use slice adjust county as needed
+  st_centroid(geometry) %>% select(geometry) 
+
+ll <- do.call(rbind, st_geometry(ll))
+
+ll_x <- ll[1] 
+ll_y <- ll[2]
+
+# low high 
+lh <- pop_ab %>% filter(bi_class == "1-3") %>% slice(1) %>%  
+  # use slice adjust county as needed
+  st_centroid(geometry) %>% select(geometry) 
+
+lh <- do.call(rbind, st_geometry(lh))
+
+lh_x <- lh[1]
+lh_y <- lh[2]
+
+# 
+
+# high low
+
+hl <- pop_ab %>% filter(bi_class == "3-1") %>% slice(1) %>%  
+  # use slice adjust county as needed
+  st_centroid(geometry) %>% select(geometry) 
+
+hl <- do.call(rbind, st_geometry(hl))
+
+hl_x <- hl[1]
+hl_y <- hl[2]
+
+# high high
+
+hh <- pop_ab %>% filter(bi_class == "3-3") %>% slice(2) %>%  
+  # use slice adjust county as needed
+  st_centroid(geometry) %>% select(geometry) 
+
+hh <- do.call(rbind, st_geometry(hh))
+
+hh_x <- hh[1]
+hh_y <- hh[2]
+```
+
+
+
+
+```{r create map}
+map2 <- 
+  ggplot() +
+  geom_sf(data = pop_ab, mapping = aes(fill = bi_class), color = "white", size = 0.1, show.legend = FALSE) +
+  bi_scale_fill(pal = "DkCyan", dim = 3)+
+  ylim(37.85,41.75)+
+  # low abortion low 20-34 curve ####
+geom_curve(
+  aes(
+    x = ll_x/.992,
+    xend = ll_x-.2,
+    y = ll_y*1.012,
+    yend = ll_y),
+  curvature = .2,
+  linewidth = .5,
+  color = "#6F7378",
+  arrow = arrow(length = unit(.2, "cm")))+ #low abortion low income county text
+  annotate("text", ll_x/.984, ll_y*1.02,
+           colour = "#6F7378",
+           size = 3.15,
+           label = "Light gray counties:\nlow abortion, few\n20 to 34 year-olds.",
+           lineheight = .9,
+           hjust=0)+
+  # low high curve and label
+  geom_curve(
+    aes(
+      x = lh_x*.978,
+      xend = lh_x,
+      y = lh_y/1.001,
+      yend = lh_y),
+    curvature = -.28,
+    linewidth = .55,
+    color = "#6F7378",
+    arrow = NULL)+#arrow(length = unit(.2, "cm")))+
+  # low abortion low rate 20-34 text
+  annotate("text", lh_x*.981, lh_y/.995,
+           colour = "#6F7378",
+           size = 3.15,
+           label = "Green counties:\nhigh abortion, few\n20 to 34 year-olds.",
+           lineheight = .9,
+           hjust=0
+  )+
+  # high low curve and label
+  geom_curve(
+    aes(
+      x = hl_x*.985,
+      xend = hl_x+.25,
+      y = hl_y*1.015,
+      yend = hl_y),
+    curvature = -.2, #-.3
+    linewidth = .5,
+    color = "#6F7378",
+    arrow = arrow(
+      length = unit(.2, "cm")))+
+  # low abortion low  20-34 text
+  annotate("text", hl_x*.9875, hl_y*1.022,
+           colour = "#6F7378",
+           size = 3.15,
+           label = "Blue counties:\nlow abortion, many\n20 to 34 year-olds.",
+           lineheight = .9,
+           hjust=0
+  )+
+  #high high curve and label
+  geom_curve(
+    aes(
+      x = hh_x+.92, #.92
+      xend = hh_x+.25,
+      y = hh_y,
+      yend = hh_y),
+    curvature = 0,
+    linewidth = .5,
+    color = "#6F7378",
+    arrow = arrow(
+      length = unit(.2, "cm")))+
+  # high abortion high 20-34 county text
+  annotate("text", hh_x+1.03, #.97
+           hh_y,
+           colour = "#6F7378",
+           size = 3.15,
+           label = "Dark green counties:\nhigh abortion, many\n20 to 34 year-olds.",
+           lineheight = .9,
+           hjust=0
+  )+
+  # blank annotation to extend right margin (xlim removes annotations and curves)
+  annotate("text", hh_x/1.027, hh_y*1.013,
+           colour = "#6F7378",
+           size = 3.15,
+           label = "",
+           lineheight = .9,
+           hjust=0
+  )+
+  # blank annotation to extend left margin (xlim removes annotations and curves)
+  annotate("text", hh_x*1.043, hh_y*1.013,
+           colour = "#6F7378",
+           size = 3.15,
+           label = "",
+           lineheight = .9,
+           hjust=0
+  )+
+  t_theme()+
+  theme(
+    panel.grid.major.y = element_blank(),
+    #panel.grid.major.y = element_blank(),
+    panel.grid.major.x = element_blank(), 
+    plot.background = element_rect(fill=panel_c, color = panel_c),
+    panel.background = element_rect(fill=panel_c, color = panel_c),
+    axis.text = element_blank(),
+    axis.title.y = element_blank(),
+    axis.title.x = element_blank(),
     axis.line = element_blank(),
     axis.ticks = element_blank(),
-    axis.title.x = element_blank(),
-    axis.text = element_text(size = 7,
-                             color = "gray 55"),
-    axis.title.y = element_text(color = "gray55",
-                                  size = rel(.6), vjust = .6),
-    panel.background = element_rect(fill=panel_c),
-    plot.background = element_rect(fill = panel_c, 
-                                   color = panel_c,
-                                   size = .35),
-    
-    plot.title.position = "plot",
-    plot.margin = unit(c(.5, .5, .5, .5), "cm"),
-    # plot.caption = element_textbox_simple(family = "sans", size = 7,
-    #                                       color = "gray40", halign = 1,
-    #                                       lineheight = 1.2),
-    legend.position = "none"
+    plot.margin = margin(0, .5, 0, .5, unit = "cm")
   )+
   labs(
-    title = pct_title,
-    subtitle  = subtitle,
-    caption = "<br>**Abortion Data:** 'www.in.gov/health/vital-records/vital-statistics/terminated-pregnancy-reports/'<br>**Graphic:** Ted Schurter 2023")
+    subtitle = paste0("Women in this age range are ", 
+                      round(ab_age %>% filter(num %in% 4:6) %>% summarise(sum(pct)/8)),
+                      "% of the female population and receive ",
+                      round(ab_age %>% filter(num %in% 4:6 & year == 2021) %>% summarise(sum(pct))),
+                      "% of all abortions."),
+    title = paste0(broman::spell_out(pop_ab %>% filter(bi_class == '3-3') %>% nrow(), capitalize = TRUE),
+                   " Indiana counties have a high rate of abortion and a high rate of women 
+               between 20 and 34 years old; ",
+                   broman::spell_out(pop_ab %>% filter(bi_class == '1-1') %>% nrow(), capitalize = TRUE),
+                   " counties have low rates of both."),
+    caption = paste0("<br>**Data:** 'www.in.gov/health/vital-records/vital-statistics/terminated-pregnancy-reports'
+   'www2.census.gov/programs-surveys/popest/datasets/2020-2021/counties/asrh/cc-est2021-agesex-18.csv'
+   \n**Graphic:** Ted Schurter 2023"))
+
+finalPlot2 <- ggdraw() +
+  draw_plot(map2, x =0, y= 0.015, width = 1, height = 1) +
+  draw_plot(legend, x= 0.74, y = .115, width = 0.22, height = 0.22)+ # y=.13
+  theme(
+    plot.background = element_rect(fill = panel_c, color = panel_c)
+  )
+```
+
+## {.tabset}
+
+### Map
+
+```{r, fig biv map, fig.height = 7.5}
+finalPlot2
+```
+
+### Data
+
+```{r age}
+pop_ab_no_geo %>% 
+  select(-c(GEOID, bi_x, bi_y, bi_class)) %>% 
+  mutate(fem_rank = case_when(
+    fem_rte < 160 ~ "Low-",
+    fem_rte %in% 160:180 ~ "Medium",
+    fem_rte > 180 ~ "High"))%>% 
+  mutate(ab_rank = case_when(
+    rate < 1.7 ~ "Low",
+    rate > 1.71 & rate < 3.2 ~ "Medium",
+    rate > 3.3 ~ "High")) %>% 
+datatable(colnames = c("County", "20 to 34 year old\nfemale population", "Total\nfemale\npopulation", "Population of childbearing age females (10-49 years-old)", "Rate of\n20 to 34 year-old\nfemales per 1,000", "Count of\nabortions", "Abortion\nrate per 1,000", "Rank of rate of 20-24 year-olds",  "Rank of abortion rate"),
+          caption = htmltools::tags$caption(
+            style = 'caption-side: top; text-align: center;',
+    "Average female population and abortion counts, and rates of 20 to 34 year-old women and abortion in Indiana from 2014 to 2021.", style = "color:black"),
+         
+          
+          rownames=FALSE, 
+          filter = "top", 
+          extensions = c('Buttons', 'FixedColumns'),
+          options = list(pageLength=10, 
+                         scrollX=T,
+                         dom = 'Bfrtip',
+                         scrollY = '250px',
+                         buttons = c('csv', 'excel')
+                         #columnDefs = list(list(className = 'dt-center', targets = 0:3))     
+                         )) %>%
+    
+  formatRound(c("fem_pop", "all_age", "cba_age", "Count"), digits = 0)
+```
+
+## {-}
+
+---
+
+
+```{r import_race_data}
+both_pop <- read_csv("Exported_Data/both_pop.csv") %>% 
+  mutate(race_pct = 10*pct_race) # to get rate per 1,000
 
 ```
 
+####  Between 2014 and 2021, the abortion rate for women of childbearing age in Indiana was `r round(sum(both_pop$count)/sum(both_pop$total)*1000,1)` per 1,000 women of childbearing age, though it varies by race. In that time, white women made up `r round(both_pop$avg_pct[both_pop$race == "White"])`% of the state's female population and received `r round(both_pop$ab_pct[both_pop$race == "White"])`% of all abortions, though they have the smallest population of childbearing age women, `r round(both_pop$cba_pct[both_pop$race == "White"])`%. The rate of abortion within that group is fourth-lowest among all races. Black women were on average `r round(both_pop$avg_pct[both_pop$race == "Black"])`% of the female population, had the second-lowest percentage of childbearing age women at `r round(both_pop$cba_pct[both_pop$race == "Black"])`%, and had the highest rate of abortion per 1,000 women of childbearing age at `r round(both_pop$race_pct[both_pop$race == "Black"])`%. Asians, the third-largest racial group making up `r round(both_pop$avg_pct[both_pop$race == "Asian"])`% of the population, had the highest percentage of childbearing age women, `r round(both_pop$cba_pct[both_pop$race == "Asian"])`%, and the third-highest abortion rate. 
 
-```{r proc_display_plot}
-p2
 
+```{r race_plot_colors}
+panel_c <- "#fdfdf2"
+# race color as list
+race_colors <- 
+  list( "American Indian and Alaska Native"          =  "#f6e8c3", 
+        "Asian"                                      =  "#d8b365",
+        "Black"                                      =  "#01665e",
+        "Multiple Races"                             =  "#5ab4ac",
+        "Native Hawaiian and Other Pacific Islander" =  "#c7eae5",
+        "Other"                                      =  "#2ca25f",
+        "White"                                      =  "#8c510a")
+
+# create dataframe of race colors
+# create vector of race names 
+race_col <- as_tibble(unique(both_pop$race))
+# create vector of colors for race
+race_col$colors <- c(
+  "#f6e8c3",   # American Indian Alaska Native
+  "#d8b365",   # Asian
+  "#01665e",   # Black
+  "#5ab4ac",   # Multiple Races
+  "#c7eae5",   # Native Hawaiian and Other Pacific Islander
+#  NA,          # Other
+  "#8c510a")   # White
+
+race_col <- race_col %>% add_row(value = "Other", colors = "NA")
+
+#race_col$colors 
+# name columns
+colnames(race_col) <- c("race", "color")
 ```
 
-Abortion provider locations and volume  {data-navmenu="Maps"}
-=====================================  
+## {.tabset}
+
+### Chart
+
+```{r race_plot, fig.width=10, fig.height=6}
+both_pop %>% 
+  mutate(race_pct = 10*pct_race) %>% 
+  ggplot()+
+  t_theme()+
+  # geom_segment(aes(x = min(race_pct), xend = max(race_pct),
+  #                  y = 50, yend = 50),
+  #              color  = "gray70", linewidth = .2, linetype = "dotted")+  
+  geom_point(
+    aes(cba_pct, 10*pct_race, color = race, size = pct_all),
+    show.legend=F)+
+  geom_point(data=both_pop,
+             aes(x = 10*round(100*sum(both_pop$count)/sum(both_pop$total),1),
+                 y = 100*round(sum(both_pop$total)/sum(both_pop$avg),1)),
+             size = 3, shape = 3, color = "dark gray", show.legend = F)+
+  scale_color_manual(values = race_colors)+
+  scale_size_continuous(range = 3.25*c(1,6))+
+  #t_theme()+
+  scale_x_continuous(name = "Percent of <br>population of <br>childbearing age",
+                     limits = c(48, 70),
+                     breaks = c(40,50, 60, 70),
+                     minor_breaks = c(55, 65),
+                     labels = c("40","50%", "60%", "70%"),
+                     expansion(mult = c(.20, .20))
+  )+
+  scale_y_continuous(name = "<br>Rate of<br>abortion<br>per 1,000<br>women of<br>childbearing<br>age",
+                     limits = 10*c(.125, 1.3),
+                     breaks = 10*c(.25, .50, .75, 1, 1.25),
+                     labels = c("2.5", "5", "7.5", "10", "12.5"),
+                     #expand = expansion(mult = c(0.02, 0.02))
+  )+
+  theme(
+    panel.grid.major.y = element_line(color = "gray80", size = .25, linetype = "dotted"),
+    #panel.grid.major.y = element_blank(),
+    panel.grid.major.x = element_blank(),
+    axis.line = element_line(color = "gray80", size = .25),
+    plot.background  = element_rect(color = panel_c, fill  = panel_c, size = .35),
+    panel.background = element_rect(color = NA, fill = panel_c),
+    axis.title.x  = element_markdown(size = rel(.85), color = "gray55", family = "sans",
+                                     hjust = 0),
+    axis.title.y = element_markdown(size = rel(.8), color = "gray55", family = "sans",
+                                    angle = 0, hjust = 1, vjust = .35),
+    axis.text =  element_markdown(size = 9, color = "dark gray"),
+    # plot.title = element_textbox_simple(
+    #   size = 18, lineheight = 1, family = "serif", padding = margin(0, 0, 1, 0)),
+    # plot.subtitle = element_textbox_simple(
+    #   size = 11, lineheight = 1, family = "sans", padding = margin(0, 0, 1, 0)),
+    plot.title.position = "plot",
+    plot.margin = unit(c(.5, .5, .5, .5), "cm"))+
+  labs(
+    subtitle = paste0("<span style = 'color:",race_colors$White,";'>White</span> women, the largest racial group, get more abortions than any other group but their rate of abortions, ", 
+                      round(both_pop$race_pct[both_pop$race == "White"],2),", is below the state average.
+The <span style = 'color:",race_colors$Black,";'>Black</span> abortion rate is highest, 
+more than three times the state average."),
+    title = paste0(
+      "The abortion rate for women of childbearing age varies by race. From 2014 to 2021 the average rate for all races was ",
+      both_pop %>% summarise(round(sum(count)/sum(total),4))*1000," per 1,000 women of childbearing age."),
+    caption = "**Abortion Data:** 'www.in.gov/health/vital-records/vital-statistics/terminated-pregnancy-reports/'<br>**Population Data:** US Census Bureau<br>
+    **Graphic:** Ted Schurter 2023")+
+  
+  # annotations ####
+# annotation for white
+annotate("text_box", 
+         y = 10*both_pop$pct_race[both_pop$race=="White"], 
+         x = both_pop$cba_pct[both_pop$race=="White"],
+         label = paste0(
+           "<span style = 'color:",race_colors$White,";'>Whites, </span>the largest racial group, have the lowest percentage
+        of childbearing age women and the fourth-lowest abortion rate."), 
+         color = "black", lineheight = 1, size = 4,
+         width = unit(3.2, "inch"), hjust = .1, vjust = -.5, box.color=panel_c, 
+         fill = panel_c)+
+  # annotation for asian
+  annotate("text_box", 
+           y = 10*both_pop$pct_race[both_pop$race=="Asian"], 
+           x = both_pop$cba_pct[both_pop$race=="Asian"],
+           label = paste0(
+             "<span style = 'color:",race_colors$Asian,";'>Asians, </span>the third-largest racial group, have the highest percentage
+           of childbearing age women and the third-highest abortion rate."), 
+           color = "black", lineheight = 1, size = 3.75,
+           width = unit(3, "inch"), hjust = .5, vjust = 1.2, box.color=panel_c, 
+           fill = panel_c)+
+  # annotation for Black
+  annotate("text_box", 
+           y = 10*both_pop$pct_race[both_pop$race=="Black"], 
+           x = both_pop$cba_pct[both_pop$race=="Black"],
+           label = paste0(
+             "<span style = 'color:#01665e;'>Blacks, </span> the second-largest racial group, have the second-lowest percentage
+         of childbearing age women but the highest abortion rate."), 
+           color = "black",lineheight = 1, size = 4.5,
+           width = unit(3, "inch"), hjust = .05, vjust = 1.2, box.color=panel_c, 
+           fill = panel_c)+
+  # annotation for Native Hawaiian and Other Pacific Islander
+  annotate("text_box", 
+           y = 10*both_pop$pct_race[both_pop$race=="Native Hawaiian and Other Pacific Islander"], 
+           x = both_pop$cba_pct[both_pop$race=="Native Hawaiian and Other Pacific Islander"],
+           label = "Native Hawaiian and Other Pacific Islander",
+           color = "dark gray",lineheight = 1, size = 3,
+           width = unit(2.25, "inch"), hjust = -.08, vjust = .5, box.color=panel_c, 
+           fill = panel_c)+
+  # annotation for American Indian and Alaska Native
+  annotate("text_box", 
+           y = 10*both_pop$pct_race[both_pop$race=="American Indian and Alaska Native"], 
+           x = both_pop$cba_pct[both_pop$race=="American Indian and Alaska Native"],
+           label = "American Indian and Alaska Native",
+           color = "dark gray",lineheight = 1, size = 3,
+           width = unit(2.25, "inch"), hjust = .5, vjust = -.4, box.color=panel_c, 
+           fill = panel_c)+
+  # annotation for Multiple Races
+  annotate("text_box", 
+           y = 10*both_pop$pct_race[both_pop$race=="Multiple Races"], 
+           x = both_pop$cba_pct[both_pop$race =="Multiple Races"],
+           label = "Multiple Races",
+           color = "dark gray", lineheight = 1, size = 3,
+           width = unit(2.25, "inch"), hjust = -.08, vjust = .65, box.color=panel_c, 
+           fill = panel_c)
+```
+
+### Data
+
+```{r, data table for race}
+
+both_pop %>% select(race, avg, avg_pct, total, cba_pct, count, pct_race) %>% 
+  mutate_at(c(3,5,7), ~ . /100) %>% 
+             mutate_at(c(3:5,7), round,3) %>%
+             mutate_at(c(2,4,6), round) %>% 
+  
+  
+  
+datatable(colnames = c("Population", "Percent of\ntotal population", "Childbearing age\npopulation",
+                       "Percent of\npopulation of\nchildbearing age", "Abortions", "Percent of                  childbearing\npopulation that had\nabortion"),
+          caption = htmltools::tags$caption(
+            style = 'caption-side: top; text-align: center;',
+    "Average race population and abortion totals in Indiana 2014 to 2021.", style = "color:black"),
+         
+          
+          rownames=FALSE, 
+          filter = "top", 
+          extensions = c('Buttons', 'FixedColumns'),
+          options = list(pageLength=10, 
+                         scrollX=T,
+                         dom = 'Bfrtip',
+                         scrollY = '250px',
+                         buttons = c('csv', 'excel')
+                         #columnDefs = list(list(className = 'dt-center', targets = 0:3))
+                         )) %>% 
+  formatPercentage(c("avg_pct", "pct_race","cba_pct"), 2) %>% 
+  formatRound(c('avg', "total",  "count"), digits = 0)
+```
+
+## {-}
+
+---
+
+```{r import education data}
+ed <- read_csv("Exported_Data/ed_ab.csv")
+```
 
 
+#### Abortion is most prevalent among women who have not completed higher levels of education. Women with a high school diploma or GED made up between `r round(min(ed$Percent[ed$Level == "High school diploma or GED"]))`% and `r round(max(ed$Percent[ed$Level == "High school diploma or GED"]))`% of all abortions between 2014 and 2021. There were fewer abortions on average by women with a doctoral or professional degree, `r round(mean(ed$Percent[ed$Level == "Doctoral or professional degree"], na.rm = T),1)`%, than any other educational level.  
+
+
+## {.tabset}
+
+### Chart
+```{r create line chart, fig.width=10, fig.height=5.75}
+# create line chart ####
+
+# make dataframes for lines with and without color
+top_ed <- ed %>% 
+  filter(Level == "High school diploma or GED" |
+        Level == "Some college credit, no degree")
+
+top_ed_lab <- top_ed %>% filter(Year == 2021) %>% mutate(Level = case_match(Level,
+  "High school diploma or GED" ~ "High school diploma\nor GED",
+  "Some college credit, no degree" ~ "Some college credit,\nno degree"))
+
+bottom_ed <- ed %>% 
+  filter(Level != "High school diploma or GED" &
+         Level != "Some college credit, no degree")
+
+bottom_ed_lab <- bottom_ed %>% filter(Year == 2021)
+
+# titles, caption, colors ####
+
+# high school color
+hsc <- "#5ab4ac"
+# some college color
+scc <- "#d8b365"
+
+# set colors for top two categories
+
+ed_cols <- c("High school diploma or GED" = hsc,
+            "Some college credit, no degree" = scc)
+
+
+title <- paste0(
+  "<span style = 'color:black;'>Most Indiana residents who get an abortion have not 
+  completed higher levels of education.</span>")
+
+subtitle <- paste0(
+  "<span style = 'color:black;'>On average, <span style = 'color:",hsc,";'>",
+  round(sum(ed$Count[ed$Level == "High school diploma or GED"])/sum(ed$Count)*100),
+  "%</span> have a <span style = 'color:",hsc,";'>high school diploma or GED </span> and <span style = 'color:",scc,";'>",
+  round(sum(ed$Count[ed$Level == "Some college credit, no degree"])/sum(ed$Count)*100),
+  "%</span> have <span style = 'color:",scc,";'>some college credit, but 
+  no degree.</span>")
+
+caption <- "<br>**Data:** 'www.in.gov/health/vital-records/vital-statistics/terminated-pregnancy-reports'<br>
+**Graphic:** Ted Schurter 2023"
+
+#format y scale 
+pct1 <- scales::percent_format(scale = 1)
+# background color 
+panel_c <- "#fdfdf2"
+
+ggplot()+
+  # top two categories
+  geom_line(data = top_ed,
+            aes(Year, Percent, color = Level, group = Level),
+            show.legend = F, size = .65)+
+  geom_text(data = top_ed_lab,
+            aes(2021.25, Percent), color = ed_cols,
+            label = top_ed_lab$Level, show.legend = F,
+            vjust = 0, hjust = "left", lineheight =.9)+
+  # remaining categories
+  geom_line(data = bottom_ed,
+          aes(Year, Percent, group = Level),
+          show.legend = F, color = "gray")+
+  geom_text_repel(data = bottom_ed_lab,
+            aes(2021, Percent), xlim = 2021.25,
+            label = bottom_ed_lab$Level, show.legend = F,
+            vjust = .15, hjust = "left", color = "gray", size = 3,
+            min.segment.length = .5, point.padding = 2.5)+
+  scale_x_continuous(limits = c(2014, 2023),
+                     breaks = seq(2014, 2023, by= 1),
+                     labels = c("2014", "2015", "2016", "2017", "2018", "2019",
+                                "2020", "2021", "", ""))+
+  scale_color_manual(values = ed_cols)+
+  # add grid lines
+  geom_segment(aes(x = 2014, xend = 2021,
+                   y = c(10,20,30,40), yend = c(10,20,30,40)),
+               color = "gray80", size = .5, linetype = "dotted")+
+  scale_y_continuous(labels = scales::percent_format(scale = 1),
+                     name = "Percent of <br>all abortions")+
+  t_theme()+
+  coord_cartesian(clip = "off")+
+  theme(
+    panel.grid.major.y = element_blank(),
+    axis.title.y = element_markdown(color = "gray55",
+                                  size = rel(.6),
+                                  vjust = .60, hjust = 1),
+    axis.title.x = element_blank(),
+    panel.background = element_rect(fill = panel_c),
+    plot.background = element_rect(fill = panel_c),
+  )+
+  labs(title = title,
+       subtitle = subtitle,
+       caption = caption
+       )
+  
+```
+
+### Data
+
+```{r ed table}
+
+
+ed %>% mutate(Percent = Percent/100) %>% 
+datatable(colnames = c("Year", "Education Level", "Count of\nabortions", "Percent of\nabortions"),
+  caption = htmltools::tags$caption(
+          style = 'caption-side: top; text-align: center;',
+    "Abortion totals in Indiana by year, education 2014 to 2021.", style = "color:black"),
+          rownames=FALSE, 
+          filter = "top", 
+          extensions = c('Buttons', 'FixedColumns'),
+          options = list(pageLength=10, 
+                         scrollX=T,
+                         dom = 'Bfrtip',
+                         scrollY = '250px',
+                         buttons = c('csv', 'excel')
+                         #columnDefs = list(list(className = 'dt-center', targets = 0:3))
+                         )) %>% 
+  formatPercentage("Percent", 2) %>% 
+  formatRound("Count", digits = 0)
+```
+
+## {-}
+
+---
 
 ```{r import data}
 # import provider location data  ####
@@ -1265,9 +2339,268 @@ prov <- read_csv("Exported_Data/prov_ll.csv")
 # 
 ```
 
+```{r generate totals, calculate percents, fig.width=10}
+# calculate number of facility types by year ####
+
+t1 <- prov %>% 
+  group_by(year) %>% 
+  summarise(tot = n_distinct(facility)) 
+
+t2 <- prov %>% 
+  ungroup() %>% 
+  mutate(type = if_else(str_detect(facility, "Hospital") == TRUE, "H", "F")) %>% 
+  filter(type == "F") %>% 
+  group_by(year) %>% 
+  summarise(ftot = n_distinct(facility))
+
+t3 <- prov %>% 
+  ungroup() %>% 
+  mutate(type = if_else(str_detect(facility, "Hospital") == TRUE, "H", "F")) %>% 
+  filter(type == "H") %>% 
+  group_by(year) %>% 
+  summarise(htot = n_distinct(facility))  
+
+
+t4 <- left_join(t1, t2, by = "year")
+
+t5 <- left_join(t3, t4, by = "year")
+
+facility <- t5 %>% pivot_longer(
+  cols = c(2:4), names_to = "type", values_to = "count")
+
+facility$type <- factor(facility$type, levels = c("tot", "ftot", "htot"),
+                        ordered = T)
+
+# totals for captions ####
+# total of all abortions 
+tot <- facility %>%   
+  filter(type == "tot") %>% #nrow
+  summarise(sum(count))
+
+# total of all abortions at non-hospital facilities
+f_tot <- facility %>% 
+  filter(type == "ftot") %>% 
+  summarise(sum(count))
+
+# total of all abortions at hospital facilities
+h_tot <- facility %>% 
+  filter(type == "htot") %>% 
+  summarise(sum(count))
+
+# percent of all abortions at non-hospital facilities
+fpct <- round(f_tot/tot*100)  
+# percent of all abortions at hospital facilities
+hpct <- round(h_tot/tot*100)
+
+# number of distinct hospitals
+hosp_dist_tot <- prov %>% filter(str_detect(facility, "Hospital") == TRUE) %>% 
+  distinct(facility, .keep_all = T) %>% nrow()
+
+# total number of abortions
+tot_ab <-  prov %>% ungroup() %>%  summarise(sum(count_by_yr))
+
+# number of hospital abortions
+hsp_ab <- prov %>% ungroup() %>% filter(str_detect(facility, "Hospital") == TRUE) %>% 
+  summarise(sum(count_by_yr))
+
+# percent of hospital abortions
+hsp_ab_pct <- round(100*hsp_ab/tot_ab,1)
+
+# add columns to prov dataframe:
+# pct_by_yr: percent of all abortions at given location per year
+# type = type of facility: hospital or clinic
+# pct_type = percent of abortions that occurred at the given facility type; by year
+# pct_fac = percent of facilities that are given type; by year
+# tot_pct = total percent the abortions at x facility are of all abortions
+
+prov <- prov %>% group_by(year) %>% 
+  mutate(pct_by_yr = 100*(count_by_yr/sum(count_by_yr)),
+         type = if_else(
+           str_detect(facility, "Hospital") == TRUE,
+           "Hospital", "Facility"
+         )) %>%  
+  group_by(year, type) %>%
+  mutate(pct_type = sum(pct_by_yr),
+         # to avoid total > 100 due to rounding, cap percent at 100
+         pct_type = if_else(
+           pct_type >=100, 100, pct_type)) %>%
+  add_count(type) %>%
+  group_by(year) %>%
+  mutate(pct_fac = 100*(n/n_distinct(facility))) %>% 
+  ungroup() %>% 
+  group_by(facility, year) %>% 
+  mutate(tot_pct = round(count_by_yr/tot_ab*100,2)) 
+
+
+
+# clean up 
+rm(t1, t2, t3, t4, t5)
+```
+
+#### The number of clinics that perform abortions in Indiana has hovered between `r min(prov$n[prov$type == "Facility"])` and `r max(prov$n[prov$type == "Facility"])` while the number of hospitals that performed at least one abortion annually fluctuates between `r min(prov$n[prov$type == "Hospital"])` and `r max(prov$n[prov$type == "Hospital"])`. Nearly all abortions occur in clinics.
+
+
+```{r add colors, labels and captions}
+# colors ####
+fac <- "#1a9641"
+hosp <- "#fdae61"
+tot_c <- "gray65"
+panel_c <- "#fdfdf2"
+
+# labels ####
+
+type_lab <- c(ftot = "Facility",
+              htot = "Hospital",
+              tot = "Total")
+
+# clinic colors - Marion Co. in color, everything else gray
+mc_fac_lab <- c(
+  "Affiliated Women's Services, Inc."            = "#708c9a", #a6cee3
+  "Clinic for Women"                             = "#33a02c",
+  "The Women's Med Center of Indianapolis"       = "#b2df8a",
+  "Planned Parenthood of Indianapolis"           = "#1f78b4",
+  "Friendship Family Planning Clinic of Indiana" = "gray85",
+  "Planned Parenthood of Bloomington"            = "gray85",
+  "Planned Parenthood of Lafayette"              = "gray85",
+  "Planned Parenthood of Merrillville"           = "gray85",
+  "Women's Pavilion"                             = "gray85",
+  "Whole Women's Health of South Bend"           = "gray85")
+
+# hospital colors - Eskenazi in color, everything else gray
+
+hosp_list <- c(
+  "Indiana University Health University Hospital"  = "gray85", 
+  "Sidney & Lois Eskenazi Hospital"                = "#fdae61",     
+  "Indiana University Health North Hospital"       = "gray85",    
+  "Indiana University Health Methodist Hospital"   = "gray85", 
+  "Community Hospital North Surgery Center"        = "gray85",      
+  "Indiana University Riley Hospital"              = "gray85",           
+  "Deaconess Women's Hospital"                     = "gray85",
+  "Indiana University Health West Hospital"        = "gray85")
+
+
+# captions, titles and computed figures ####
+caption <- "<br>**Data:** 'www.in.gov/health/vital-records/vital-statistics/terminated-pregnancy-reports'<br>
+**Graphic:** Ted Schurter 2023"
+```
+
+## {.tabset}
+
+### Chart 
+
+```{r provider plot, fig.width=10}
+
+ggplot()+
+  geom_col(data = facility %>% filter(year != 2021),
+           aes(year, count, fill = type,alpha = .5,),  
+           position = position_dodge(0.8), 
+           width = .65,  show.legend = F)+
+  scale_fill_manual(values = c("ftot" = fac,
+                               "htot" = hosp,
+                               "tot"  = tot_c))+
+  scale_x_continuous(breaks = c(2014:2021),
+                     labels = c("2014", "2015","2016", "2017", "2018", "2019", 
+                                "2020", "2021"))+
+  scale_y_continuous(limits = c(0, 13.5),
+                     breaks = seq(from = 0, to = 12, by = 4),
+                     labels = c("0", "4", "8", "12"),
+                     name = "Count\nof\nfacilities")+
+  geom_text(data = facility %>% filter(year == 2021),
+            aes(year, count, label = count, group = type),
+            position = position_dodge(width = .8),
+            hjust = .75, 
+            vjust = -1, size = 2.75, color = "gray30")+
+  geom_text(data = facility,
+            aes(year, count, label = count, group = type),
+            position = position_dodge(width = .8),
+            hjust = .65, 
+            vjust = 1.5, size = 2.4, color = "gray40")+
+  geom_col(data = facility %>% filter(year == 2021),
+           aes(year, count, fill = type),  
+           position = position_dodge(0.8), width = .65, show.legend = F)+
+  t_theme()+
+  theme(
+    panel.grid.major.y = element_blank(), #line(color = "gray93"),
+    panel.background = element_rect(fill = panel_c),
+    plot.background = element_rect(fill = panel_c),
+    axis.title.x = element_blank(),
+    axis.title.y = element_text(color = "gray55",
+                                  size = rel(.6), vjust = .45, hjust = 1),
+  )+
+  labs(title = 
+         paste0("The number of abortion<span style='color:",fac,"'> clinics</span> peaked in 2014
+  but the number of <span style='color:",hosp,"'>hospitals</span> and the <span style= 
+  'color:gray55'>total number</span> of facilities where abortions occurred peaked in 2021."),
+       caption = caption)
+```
+
+### Data
+
+```{r provider locations}
+prov <- read_csv("Exported_Data/prov.csv")
+
+prov %>% mutate(pct_by_yr = pct_by_yr/100) %>% select(-address) %>% 
+datatable(prov %>% select(c(year, facility, county, count_by_yr, pct_by_yr)),
+                         
+          colnames = c("Year", "Facility", "County", "Count of\nabortions by year",  "Percent of\nabortions by year"),
+          caption = htmltools::tags$caption(
+            style = 'caption-side: top; text-align: center;',
+    "Abortion facility totals in Indiana by year 2014 to 2021.", style = "color:black"),
+          rownames=FALSE, 
+          filter = "top", 
+          extensions = c('Buttons', 'FixedColumns'),
+          options = list(pageLength=10, 
+                         scrollX=T,
+                         dom = 'Bfrtip',
+                         scrollY = '250px',
+                         buttons = c('csv', 'excel')
+                         #columnDefs = list(list(className = 'dt-center', targets = 0:4))     
+                         )) %>% 
+  formatPercentage('pct_by_yr', 2) %>% 
+  formatRound(c("count_by_yr"), digits = 0)
+```
+
+## {-}
+
+---
+
+```{r, prov data frame}
+# reimport prov (sf data frame from above not suitable - can't easily loose geometry column for caluclations...)
+
+prov <- read_csv("Exported_Data/prov_ll.csv") 
+
+#  total abortion count
+tot_ab <- prov %>% summarise(tot = sum(count_by_yr)) %>% select(tot) %>% pull(1)
+
+prov <- prov %>% group_by(year) %>% 
+  mutate(pct_by_yr = 100*(count_by_yr/sum(count_by_yr)),
+         type = if_else(
+           str_detect(facility, "Hospital") == TRUE,
+           "Hospital", "Facility"
+         )) %>%  
+  group_by(year, type) %>%
+  mutate(pct_type = sum(pct_by_yr),
+         # to avoid total > 100 due to rounding, cap percent at 100
+         pct_type = if_else(
+           pct_type >=100, 100, pct_type)) %>%
+  add_count(type) %>%
+  group_by(year) %>%
+  mutate(pct_fac = 100*(n/n_distinct(facility))) %>% 
+  ungroup() %>% 
+  group_by(facility, year) %>% 
+  mutate(tot_pct = round(count_by_yr/tot_ab*100,2)) 
+
+```
+
+#### Marion County is home to `r english(nrow(prov %>% ungroup() %>% filter(type == "Facility" & county == "Marion") %>% distinct(facility)))` clinics and `r english(nrow(prov %>% ungroup() %>% filter(type == "Hospital" & county == "Marion") %>% distinct(facility)))` hospitals that performed at least one abortion per year. They accounted for `r round(100*prov %>% filter(county == "Marion") %>% ungroup() %>% summarise(sum(count_by_yr)/tot_ab),1)`% of all abortions. Facilities in Lake County accounted for `r round(100*prov %>% filter(county == "Lake") %>% ungroup() %>% summarise(sum(count_by_yr)/tot_ab),1)`%, of abortions, the second-highest percentage.
+
+
 ```{r import county lines, convert to sf dataframe}
 # import county geometry for mapping
 options(tigris_use_cache=TRUE)  # cache data
+
+# import provider location data  ####
+prov <- read_csv("Exported_Data/prov_ll.csv")
 
 # import geometry for counties and GEOID
 counties <- counties("IN", cb = T) %>% select(NAME, geometry)
@@ -1281,7 +2614,7 @@ pts <- prov
 ```
 
 
-```{r create breakout county shapes and road details}
+```{r create breakout county shapes and road details, cache=T}
 # creating combination state map w/insets of Marion, Lake and St. Joseph Counties ####
 #
 # get primary and secondary roads from TIGRIS
@@ -1586,8 +2919,6 @@ state <- ggplot()+
   )+
   theme_void()
 
-
-
 state_grob <- ggplotGrob(state)
 ```
 
@@ -1658,7 +2989,7 @@ im <-
   # inset text block
   annotate("text_box", x=.66, y=.89,
            label ="The 3 counties with multiple abortion facilities are home to 
-           large metropolitan populations",
+           large metropolitan populations.",
            color = "gray40", lineheight = 1,
            width = unit(1.75, "inch"), hjust = 0, vjust = .5, box.color="white", 
            fill = panel_c, size = 3)+
@@ -1682,7 +3013,8 @@ im <-
                                           color = "gray40", halign = 1,
                                           lineheight = 1.2),
     plot.title.position = "panel",
-    plot.margin = margin(.5, .5, .5, .5, unit = "cm")
+    plot.margin = margin(.5, .5, .5, .5, unit = "cm"),
+    axis.title.y = element_blank()
   )+
   labs(title = paste("Abortions were provided in 7 of Indiana's 92 counties from 2014 to 2021. 
   Nearly all, <span style = 'color:",fac,";'>99%</span>, 
@@ -1693,307 +3025,44 @@ im <-
   <br>**Graphic:** Ted Schurter 2023"
   )
 
-
 ```
 
 ```{r prov loc map,  fig.height = 7 }
 im
 ```
 
+---
 
+```{r}
+# reimport prov (sf data frame from above not suitable - can't easily loose geometry column for caluclations...)
 
-Abortions by race {data-navmenu="Charts"}
-===================================== 
-
-
-
-```{r include = F}
-
-knitr::opts_chunk$set(eval = T,
-                      echo = F,
-                      include = T,
-                      warning = F,
-                      dev = "png",
-                      dpi = 200,
-                      cache = FALSE,
-                      fig.align  = "left",
-                      fig.width  =  11,
-                      fig.height =  5.75,
-                      #fig.asp = 1.83,
-                      out.width  = "100%",
-                      out.height = "100%"
-                      )
-
-```
-
-```{r import_race_data}
-both_pop <- read_csv("Exported_Data/both_pop.csv")
-
-```
-
-```{r race_plot_colors}
-panel_c <- "#fdfdf2"
-# race color as list
-race_colors <- 
-  list( "American Indian and Alaska Native"          =  "#f6e8c3", 
-        "Asian"                                      =  "#d8b365",
-        "Black"                                      =  "#01665e",
-        "Multiple Races"                             =  "#5ab4ac",
-        "Native Hawaiian and Other Pacific Islander" =  "#c7eae5",
-        "Other"                                      =  "#2ca25f",
-        "White"                                      =  "#8c510a")
-
-# create dataframe of race colors
-# create vector of race names 
-race_col <- as_tibble(unique(both_pop$race))
-# create vector of colors for race
-race_col$colors <- c(
-  "#f6e8c3",   # American Indian Alaska Native
-  "#d8b365",   # Asian
-  "#01665e",   # Black
-  "#5ab4ac",   # Multiple Races
-  "#c7eae5",   # Native Hawaiian and Other Pacific Islander
-#  NA,          # Other
-  "#8c510a")   # White
-
-race_col <- race_col %>% add_row(value = "Other", colors = "NA")
-
-#race_col$colors 
-# name columns
-colnames(race_col) <- c("race", "color")
-```
-
-```{r race_plot}
-both_pop %>% 
-  mutate(race_pct = 10*pct_race) %>% 
-  ggplot()+
-  t_theme()+
-  # geom_segment(aes(x = min(race_pct), xend = max(race_pct),
-  #                  y = 50, yend = 50),
-  #              color  = "gray70", linewidth = .2, linetype = "dotted")+  
-  geom_point(
-    aes(10*pct_race, cba_pct, color = race, size = pct_all),
-    show.legend=F)+
-  geom_point(data=both_pop,
-             aes(x = 10*round(100*sum(both_pop$count)/sum(both_pop$total),1),
-                 y = 100*round(sum(both_pop$total)/sum(both_pop$avg),1)),
-             size = 3, shape = 3, color = "dark gray", show.legend = F)+
-  scale_color_manual(values = race_colors)+
-  scale_size_continuous(range = 3.25*c(1,6))+
-  #t_theme()+
-  scale_y_continuous(name = "Percent of <br>population of <br>childbearing age",
-                     limits = c(48,67),
-                     breaks = c(40,50, 60, 70),
-                     minor_breaks = c(55, 65),
-                     labels = c("40","50%", "60%", "70%"),
-                     expansion(mult = c(.20, .20))
-  )+
-  scale_x_continuous(name = "<br>Rate of abortion per 1,000 women of childbearing age",
-                     limits = 10*c(.125, 1.35),
-                     breaks = 10*c(.25, .50, .75, 1, 1.25, 1.5),
-                     labels = c("2.5", "5", "7.5", "10", "12.5", "15"),
-                     #expand = expansion(mult = c(0.02, 0.02))
-  )+
-  theme(
-     panel.grid.major.y = element_line(color = "gray80", size = .25, linetype = "dotted"),
-      #panel.grid.major.y = element_blank(),
-    panel.grid.major.x = element_blank(),
-    axis.line = element_line(color = "gray80", size = .25),
-    plot.background  = element_rect(color = panel_c, fill  = panel_c, size = .35),
-    panel.background = element_rect(color = NA, fill = panel_c),
-    axis.title.x  = element_markdown(size = 9, color = "dark gray", family = "sans",
-                                     hjust = 0),
-    axis.title.y = element_markdown(size = 9, color = "dark gray", family = "sans",
-                                    angle = 0, hjust = 0),
-    axis.text =  element_markdown(size = 9, color = "dark gray"),
-    # plot.title = element_textbox_simple(
-    #   size = 18, lineheight = 1, family = "serif", padding = margin(0, 0, 1, 0)),
-    # plot.subtitle = element_textbox_simple(
-    #   size = 11, lineheight = 1, family = "sans", padding = margin(0, 0, 1, 0)),
-    plot.title.position = "plot",
-    plot.margin = unit(c(.5, .5, .5, .5), "cm"))+
-  labs(
-    subtitle = paste0(
-      "The <span style = 'color:",race_colors$Black,";'>Black</span> abortion rate is double the second highest race and three times higher than the state average."),
-    title = paste0(
-      "The abortion rate for women of childbearing age varies by race. From 2014 to 2021 the average rate for all races was ",
-      both_pop %>% summarise(round(sum(count)/sum(total),4))*1000," per 1,000."),
-    caption = "**Abortion Data:** 'www.in.gov/health/vital-records/vital-statistics/terminated-pregnancy-reports/'<br>**Population Data:** US Census Bureau<br>
-    **Graphic:** Ted Schurter 2023")+
-  
-  # annotations ####
-# annotation for white
-annotate("text_box", 
-         x = 10*both_pop$pct_race[both_pop$race=="White"], 
-         y = both_pop$cba_pct[both_pop$race=="White"],
-         label = paste0(
-           "<span style = 'color:",race_colors$White,";'>Whites, </span>the largest racial group, have the lowest percentage
-        of childbearing age women and the third lowest abortion rate."), 
-         color = "black", lineheight = 1, size = 4,
-         width = unit(3.2, "inch"), hjust = .1, vjust = -.5, box.color=panel_c, 
-         fill = panel_c)+
-  # annotation for asian
-  annotate("text_box", 
-           x = 10*both_pop$pct_race[both_pop$race=="Asian"], 
-           y = both_pop$cba_pct[both_pop$race=="Asian"],
-           label = paste0(
-             "<span style = 'color:",race_colors$Asian,";'>Asians, </span>the third largest racial group, have the highest percentage
-           of childbearing age women and the third highest abortion rate."), 
-           color = "black", lineheight = 1, size = 3.75,
-           width = unit(3, "inch"), hjust = .9, vjust = 1.2, box.color=panel_c, 
-           fill = panel_c)+
-  # annotation for Black
-  annotate("text_box", 
-           x = 10*both_pop$pct_race[both_pop$race=="Black"], 
-           y = both_pop$cba_pct[both_pop$race=="Black"],
-           label = paste0(
-             "<span style = 'color:#01665e;'>Blacks, </span> the second largest racial group, have the second lowest percentage
-         of childbearing age women but the highest abortion rate."), 
-           color = "black",lineheight = 1, size = 4.5,
-           width = unit(3, "inch"), hjust = .85, vjust = 1.2, box.color=panel_c, 
-           fill = panel_c)+
-  # annotation for Native Hawaiian and Other Pacific Islander
-  annotate("text_box", 
-           x = 10*both_pop$pct_race[both_pop$race=="Native Hawaiian and Other Pacific Islander"], 
-           y = both_pop$cba_pct[both_pop$race=="Native Hawaiian and Other Pacific Islander"],
-           label = "Native Hawaiian and Other Pacific Islander",
-           color = "dark gray",lineheight = 1, size = 3,
-           width = unit(2.25, "inch"), hjust = -.08, vjust = .5, box.color=panel_c, 
-           fill = panel_c)+
-  # annotation for American Indian and Alaska Native
-  annotate("text_box", 
-           x = 10*both_pop$pct_race[both_pop$race=="American Indian and Alaska Native"], 
-           y = both_pop$cba_pct[both_pop$race=="American Indian and Alaska Native"],
-           label = "American Indian and Alaska Native",
-           color = "dark gray",lineheight = 1, size = 3,
-           width = unit(2.25, "inch"), hjust = -.08, vjust = .5, box.color=panel_c, 
-           fill = panel_c)+
-  # annotation for Multiple Races
-  annotate("text_box", 
-           x = 10*both_pop$pct_race[both_pop$race=="Multiple Races"], 
-           y = both_pop$cba_pct[both_pop$race =="Multiple Races"],
-           label = "Multiple Races",
-           color = "dark gray", lineheight = 1, size = 3,
-           width = unit(2.25, "inch"), hjust = -.08, vjust = .4, box.color=panel_c, 
-           fill = panel_c) +
-  # annotation for state average
-  annotate("text_box", 
-           x = 10*round(100*sum(both_pop$count)/sum(both_pop$total),1), 
-           y = round(100*sum(both_pop$total)/sum(both_pop$avg),1),
-           label = "Indiana average",
-           color = "dark gray",lineheight = 1, size = 3,
-           width = unit(2.25, "inch"), hjust = -.03, vjust = 1.3, box.color=panel_c, 
-           fill = panel_c) 
-```
-
-
-
-
-Abortion provider type and count by year {data-navmenu="Charts"}
-===================================== 
-
-
-
-```{r include = F}
-
-knitr::opts_chunk$set(eval = T,
-                      echo = F,
-                      include = T,
-                      warning = F,
-                      dev = "png",
-                      dpi = 200,
-                      cache = FALSE,
-                      fig.align  = "left",
-                      fig.width  =  11,
-                      fig.height =  5.75,
-                      #fig.asp = 1.83,
-                      out.width  = "100%",
-                      out.height = "100%"
-                      )
-
-```
-
-
-```{r import provider data}
-# import data
-prov <- read_csv("Exported_Data/prov.csv")
-```
-
-```{r generate totals, calculate percents}
-# calculate number of facility types by year ####
-
-t1 <- prov %>% 
-  group_by(year) %>% 
-  summarise(tot = n_distinct(facility)) 
-
-t2 <- prov %>% 
+prov <- read_csv("Exported_Data/prov_ll.csv") %>% group_by(year) %>% 
+  mutate(pct_by_yr = 100*(count_by_yr/sum(count_by_yr)),
+         type = if_else(
+           str_detect(facility, "Hospital") == TRUE,
+           "Hospital", "Facility"
+         )) %>%  
+  group_by(year, type) %>%
+  mutate(pct_type = sum(pct_by_yr),
+         # to avoid total > 100 due to rounding, cap percent at 100
+         pct_type = if_else(
+           pct_type >=100, 100, pct_type)) %>%
+  add_count(type) %>%
+  group_by(year) %>%
+  mutate(pct_fac = 100*(n/n_distinct(facility))) %>% 
   ungroup() %>% 
-  mutate(type = if_else(str_detect(facility, "Hospital") == TRUE, "H", "F")) %>% 
-  filter(type == "F") %>% 
-  group_by(year) %>% 
-  summarise(ftot = n_distinct(facility))
+  group_by(facility, year) %>% 
+  mutate(tot_pct = round(count_by_yr/tot_ab*100,2)) 
+```
 
-t3 <- prov %>% 
-  ungroup() %>% 
-  mutate(type = if_else(str_detect(facility, "Hospital") == TRUE, "H", "F")) %>% 
-  filter(type == "H") %>% 
-  group_by(year) %>% 
-  summarise(htot = n_distinct(facility))  
+#### `r prov %>% ungroup() %>% arrange(desc(tot_fac_pct)) %>% select(facility) %>% slice(1)` in `r prov %>% ungroup() %>% arrange(desc(tot_fac_pct)) %>% select(county) %>% slice(1)` County performed the most abortions in the state.
 
 
-t4 <- left_join(t1, t2, by = "year")
+```{r facility count by year, fig.width=10}
 
-t5 <- left_join(t3, t4, by = "year")
+# reimport prov (sf data frame from above not suitable - can't easily loose geometry column for caluclations...)
 
-facility <- t5 %>% pivot_longer(
-  cols = c(2:4), names_to = "type", values_to = "count")
-
-facility$type <- factor(facility$type, levels = c("tot", "ftot", "htot"),
-                        ordered = T)
-
-# totals for captions ####
-# total of all abortions 
-tot <- facility %>%   
-  filter(type == "tot") %>% #nrow
-  summarise(sum(count))
-
-# total of all abortions at non-hospital facilities
-f_tot <- facility %>% 
-  filter(type == "ftot") %>% 
-  summarise(sum(count))
-
-# total of all abortions at hospital facilities
-h_tot <- facility %>% 
-  filter(type == "htot") %>% 
-  summarise(sum(count))
-
-# percent of all abortions at non-hospital facilities
-fpct <- round(f_tot/tot*100)  
-# percent of all abortions at hospital facilities
-hpct <- round(h_tot/tot*100)
-
-# number of distinct hospitals
-hosp_dist_tot <- prov %>% filter(str_detect(facility, "Hospital") == TRUE) %>% 
-  distinct(facility, .keep_all = T) %>% nrow()
-
-# total number of abortions
-tot_ab <-  prov %>% ungroup() %>%  summarise(sum(count_by_yr))
-
-# number of hospital abortions
-hsp_ab <- prov %>% ungroup() %>% filter(str_detect(facility, "Hospital") == TRUE) %>% 
-  summarise(sum(count_by_yr))
-
-# percent of hospital abortions
-hsp_ab_pct <- round(100*hsp_ab/tot_ab,1)
-
-# add columns to prov dataframe:
-# pct_by_yr: percent of all abortions at given location per year
-# type = type of facility: hospital or clinic
-# pct_type = percent of abortions that occurred at the given facility type; by year
-# pct_fac = percent of facilities that are given type; by year
-# tot_pct = total percent the abortions at x facility are of all abortions
-
-prov <- prov %>% group_by(year) %>% 
+prov <- read_csv("Exported_Data/prov_ll.csv") %>% group_by(year) %>% 
   mutate(pct_by_yr = 100*(count_by_yr/sum(count_by_yr)),
          type = if_else(
            str_detect(facility, "Hospital") == TRUE,
@@ -2011,110 +3080,6 @@ prov <- prov %>% group_by(year) %>%
   group_by(facility, year) %>% 
   mutate(tot_pct = round(count_by_yr/tot_ab*100,2)) 
 
-
-
-# clean up 
-rm(t1, t2, t3, t4, t5)
-```
-
-
-```{r add colors, labels and captions}
-# colors ####
-fac <- "#1a9641"
-hosp <- "#fdae61"
-tot_c <- "gray65"
-panel_c <- "#fdfdf2"
-
-# labels ####
-
-type_lab <- c(ftot = "Facility",
-              htot = "Hospital",
-              tot = "Total")
-
-# clinic colors - Marion Co. in color, everything else gray
-mc_fac_lab <- c(
-  "Affiliated Women's Services, Inc."            = "#a6cee3",
-  "Clinic for Women"                             = "#33a02c",
-  "The Women's Med Center of Indianapolis"       = "#b2df8a",
-  "Planned Parenthood of Indianapolis"           = "#1f78b4",
-  "Friendship Family Planning Clinic of Indiana" = "gray85",
-  "Planned Parenthood of Bloomington"            = "gray85",
-  "Planned Parenthood of Lafayette"              = "gray85",
-  "Planned Parenthood of Merrillville"           = "gray85",
-  "Women's Pavilion"                             = "gray85",
-  "Whole Women's Health of South Bend"           = "gray85")
-
-# hospital colors - Eskenazi in color, everything else gray
-
-hosp_list <- c(
-  "Indiana University Health University Hospital"  = "gray85", 
-  "Sidney & Lois Eskenazi Hospital"                = "#fdae61",     
-  "Indiana University Health North Hospital"       = "gray85",    
-  "Indiana University Health Methodist Hospital"   = "gray85", 
-  "Community Hospital North Surgery Center"        = "gray85",      
-  "Indiana University Riley Hospital"              = "gray85",           
-  "Deaconess Women's Hospital"                     = "gray85",
-  "Indiana University Health West Hospital"        = "gray85")
-
-
-# captions, titles and computed figures ####
-caption <- "<br>**Data:** 'www.in.gov/health/vital-records/vital-statistics/terminated-pregnancy-reports'<br>
-**Graphic:** Ted Schurter 2023"
-```
-
-
-```{r provider plot}
-
-ggplot()+
-  geom_col(data = facility %>% filter(year != 2021),
-           aes(year, count, fill = type,alpha = .5,),  
-           position = position_dodge(0.8), 
-           width = .65,  show.legend = F)+
-  scale_fill_manual(values = c("ftot" = fac,
-                               "htot" = hosp,
-                               "tot"  = tot_c))+
-  scale_x_continuous(breaks = c(2014:2021),
-                     labels = c("2014", "2015","2016", "2017", "2018", "2019", 
-                                "2020", "2021"))+
-  scale_y_continuous(limits = c(0, 13.5),
-                     breaks = seq(from = 0, to = 12, by = 4),
-                     labels = c("0", "4", "8", "12"),
-                     name = "Count\nof\nfacilities")+
-  geom_text(data = facility %>% filter(year == 2021),
-            aes(year, count, label = count, group = type),
-            position = position_dodge(width = .8),
-            hjust = .75, 
-            vjust = -1, size = 2.75, color = "gray30")+
-  geom_text(data = facility,
-            aes(year, count, label = count, group = type),
-            position = position_dodge(width = .8),
-            hjust = .65, 
-            vjust = 1.5, size = 2.4, color = "gray40")+
-  geom_col(data = facility %>% filter(year == 2021),
-           aes(year, count, fill = type),  
-           position = position_dodge(0.8), width = .65, show.legend = F)+
-  t_theme()+
-  theme(
-    panel.grid.major.y = element_line(color = "gray93"),
-    panel.background = element_rect(fill = panel_c),
-    plot.background = element_rect(fill = panel_c),
-    axis.title.x = element_blank(),
-    axis.title.y = element_text(vjust = .5),
-  )+
-  labs(title = 
-         paste0("The number of abortion<span style='color:",fac,"'> clinics</span> peaked in 2014
-  but the number of <span style='color:",hosp,"'>hospitals</span> and the <span style= 
-  'color:gray55'>total number</span> of facilities where abortions occurred peaked in 2021."),
-       caption = caption)
-```
-
-
-Clinic abortion count by year {data-navmenu="Charts"}
-===================================== 
-
-
-
-```{r facility count by year}
 ggplot()+
   # scale lines
   geom_segment(aes(x = 2014, xend = 2021,
@@ -2179,37 +3144,42 @@ ggplot()+
                      breaks = seq(from = 2014, to = 2023, by = 1),
                      labels = c("2014", "2015", "2016", "2017", "2018", "2019",
                                 "2020", "2021", "", ""))+
-  scale_y_continuous(labels = scales::percent_format(scale = 1))+
+  scale_y_continuous(labels = scales::percent_format(scale = 1),
+                     name = "Percent of <br>all abortions")+
   t_theme()+
   theme(
     panel.background = element_rect(fill = panel_c),
     plot.background = element_rect(fill = panel_c),
     panel.grid.major.y = element_blank(),#element_line(color = "gray90", linetype = "dashed"), 
     axis.title.x = element_blank(),
-    axis.title.y = element_blank(), #element_text(size = rel(.65),vjust = 1.05),
+    axis.title.y = element_markdown(color = "gray55", 
+                               size = rel(.65), 
+                               vjust = .60, hjust = 1),
     legend.position = "none")+
   labs(title = 
          paste0("There were ", prov %>% ungroup() %>%  filter(type == "Facility") %>% 
                distinct(facility) %>% nrow()," distinct abortion clinics operating
-               in ",prov %>% ungroup() %>%  filter(type == "Facility") %>% 
-               distinct(county) %>% nrow(), 
+               in ", english(prov %>% ungroup() %>%  filter(type == "Facility") %>% 
+               distinct(county) %>% nrow()), 
                " Indiana counties between 2014 and 2021, ",
                100*(prov %>% ungroup() %>%  filter(county == "Marion" & type == "Facility") %>% 
                distinct(facility) %>% nrow())/(prov %>% ungroup() %>%  filter(type == "Facility") %>% 
                distinct(facility) %>% nrow()) ,
                 "% were in Marion County and accounted for ",
                round(prov %>% ungroup() %>%  filter(county == "Marion" & type == "Facility") %>% 
-               summarise(sum(tot_pct))),
+               summarise(tot = sum(tot_pct))),
                "% of all abortions."),
        subtitle = "The number of clinics reached nine in 2014 before shrinking to
        six by 2016. A clinic opened in South Bend in 2019, raising the total to seven.",
        caption = caption)
 ```
 
-Hospital abortion count by year {data-navmenu="Charts"}
-===================================== 
+---
 
-```{r hospital count by year}
+#### `r prov %>% filter(type == "Hospital") %>% ungroup() %>% arrange(desc(tot_fac_pct)) %>% select(facility) %>% slice(1)` in `r prov %>% filter(type == "Hospital") %>% ungroup() %>% arrange(desc(tot_fac_pct)) %>% select(county) %>% slice(1)` County performed more abortions than any other Indiana hospital but only a  fractional percent of all abortions.
+
+
+```{r hospital count by year, fig.width=10}
 ggplot()+
   # lines for scale - 0, .5, 1%
   geom_segment(aes(x = 2014, xend = 2021,
@@ -2289,7 +3259,7 @@ ggplot()+
                                 "2020", "2021", "", ""))+
   scale_y_continuous(labels = scales::percent_format(scale = 1),
                      breaks = c(0, .5, 1),
-                     name = "")+
+                     name = "Percent of <br>all abortions")+
   scale_color_manual(values = hosp_list)+
   t_theme()+
   theme(
@@ -2297,7 +3267,9 @@ ggplot()+
     plot.background = element_rect(fill = panel_c),
     panel.grid.major.y = element_blank(),
     axis.title.x = element_blank(),
-    axis.title.y = element_blank(), 
+    axis.title.y = element_markdown(color = "gray55",
+                                  size = rel(.6),
+                                  vjust = .65),
     legend.position = "none")+
   labs(title = 
          paste0("Abortions in hospitals comprise just ", 
@@ -2305,8 +3277,8 @@ ggplot()+
                         summarise(sum(count_by_yr))/prov %>% ungroup() %>%  summarise(sum(count_by_yr)),1),
                 "% of all abortions. <span style='color:#fdae61;'>Sidney & Lois Eskenazi Hospital</span>
              was one of ",
-                prov %>% ungroup() %>% filter(type == "Hospital") %>% distinct(facility) %>% 
-                  select(facility) %>% nrow(),"
+                english(prov %>% ungroup() %>% filter(type == "Hospital") %>% distinct(facility) %>% 
+                  select(facility) %>% nrow()),"
              that performed them from 2014 to 2021. It accounted for <span style='color:#fdae61;'>",
                 round(prov %>% ungroup() %>% filter(facility == "Sidney & Lois Eskenazi Hospital") %>% 
                         summarise(sum(count_by_yr))/prov %>% ungroup() %>% filter(str_detect(facility, "Hospital") == TRUE) %>% 
@@ -2318,744 +3290,34 @@ ggplot()+
             them each year."),
        
        subtitle = paste0("There were <span style = 'color:#756bb1;'>",
-                         prov %>% ungroup() %>% filter(count_by_yr <= 1 & type == "Hospital") %>% distinct(facility) %>% 
-                           select(facility) %>% nrow(),"</span> 
+                         english(prov %>% ungroup() %>% filter(count_by_yr <= 1 & type == "Hospital") %>% distinct(facility) %>% 
+                           select(facility) %>% nrow()),"</span> 
                          instances when hospitals performed a <span style = 'color:#756bb1;'>single</span> abortion in a year."),
        caption = caption)
 ```
 
+---
 
-Abortion by age of mother and year {data-navmenu="Charts"}
-===================================== 
+<br>
 
-```{r age colors, captions, titles}
-# titles, labels and captions ####
+#### New laws and legislation are likely to continue altering the legal landscape of abortion in Indiana. The degree to which the state's short-lived ban impacted 2022 abortion totals won't be clear until the IDH releases the year's full data. As the legal fight over Indiana's abortion law continues, so too do battles over bans in neighboring [Kentucky](https://apnews.com/article/abortion-ban-kentucky-lawsuit-141c930e1ca71bcb5833c5635814a3dd) and [Ohio](https://apnews.com/article/abortion-health-ohio-government-and-politics-d4dd3a0c4816ccb9f56df30163f58b9e), states whose residents' abortions are often tallied in Indiana's reports. Where and how those residents access abortion services, and how the federal fate of mifepristone plays out are just a few of the unknown issues with potentially large impacts. The near-term future of abortion in Indiana is unknown, but it's likely to be different than its recent past. 
 
-ab_age$age <- factor(ab_age$age,
-                     levels = 
-                       c("9-13",  
-                         "10-14", 
-                         "12-14",
-                         "15-17",
-                         "< 16",
-                         "16-17",
-                         "18-19",
-                         "20-24",
-                         "25-29",
-                         "30-34",
-                         "35-39",
-                         "40-44",
-                         "45"),
-                     ordered = T)
-#
-title <- paste0("Women in their 20s accounted for ",
-                round(100*(ab_age %>% group_by(age) %>% filter(age == "20-24" | age == "25-29" ) %>% 
-                ungroup() %>%  summarise(sum(count)))/(ab_age %>% ungroup() %>% summarise(sum(count)))),
-                "% of all abortions from 2014 to 2021, while those between 20 and 34 years old made 
-                up ",
-                round(100*(ab_age %>% group_by(age) %>% filter(age == "20-24" | age == "25-29" | 
-                age == "30-34") %>% ungroup() %>%  summarise(sum(count)))/
-                (ab_age %>% ungroup() %>% summarise(sum(count)))),
-                "%.")
-subtitle <- paste0("The consolidation of the youngest age ranges starting in 2020 obscures the incidence of
-            abortion for the very young. There was an average of ",
-            round(ab_age %>% filter(age == "12-14" | age == "10-14" | age == "9-13") %>% ungroup()
-            %>%  summarise(mean(count))),
-            " abortions annually for nine to 14 year-olds from 2014 to 2019, ",
-            round(ab_age %>% filter(age == "12-14" | age == "10-14" | age == "9-13") %>% ungroup() %>%  summarise(sum(count))/
-            ab_age %>%filter(year != 2020 & year != 2021) %>% ungroup() %>% summarise(sum(count))*100,2),
-            "% of the total.<br><br><br>")
+---
 
-#
-y_labs <- c(
-    "9-13",  
-    "10-14", 
-    "12-14",
-    "15-17",
-    "< 16",
-    "16-17",
-    "18-19",
-    "<span style='color:gray25;'>**20-24**</span>",
-    "<span style='color:gray25;'>**25-29**</span>",
-    "30-34",
-    "35-39",
-    "40-44",
-    "45 and up ")
-```
+###### Data and analysis workflow available at [https://github.com/tedschurter/indiana_abortion](https://github.com/tedschurter/indiana_abortion)
 
-```{r abortion by mother age, year}
-ggplot(ab_age) + 
-  geom_tile(aes(as.factor(year), age, fill = pct, width = 1),
-            color = NA)+
-  scale_fill_distiller(palette = "Greens",
-                       direction = 0,
-                       breaks = c(10, 20, 30),
-                       labels = c("10%","20%","30%"))+
-  scale_y_discrete(labels = y_labs,
-                   name = "Age",)+
-  scale_x_discrete(limits = factor(c(2014:2022)),
-                   breaks = c(2014, 2015, 2016,2017,2018,2019,2020,
-                              2021, 2022),
-                   labels = c("2014", "2015", "2016","2017","2018","2019","2020",
-                              "2021", "")
-                   )+
-  labs(title = title,
-       subtitle = subtitle,
-       fill = "Percent of\nabortions",
-       )+
-  guides(fill=guide_colourbar(title.vjust=.85))+
-  # line marking 14 and under 2019
-  geom_segment(aes(
-           x = 6.55, xend = 6.55,
-           y = .5, yend = 3.4),
-           color = "gray85", linewidth = .25)+
-  geom_text(aes(
-    x = 6.65, y = 2),
-    color = "gray55", size = rel(2.75), hjust = 0, fontface = "plain", lineheight = .9,
-    label = paste0("Nine to 14 year-olds had\n", round(ab_age %>% filter(age == "12-14" | age == "10-14" | age == "9-13") %>% ungroup() %>%  summarise(sum(count))/
-                ab_age %>%filter(year != 2020 & year != 2021) %>% ungroup() %>% summarise(sum(count))*100,2),
-                "% of all abortions from\n2014 to 2019."))+
-  # line marking 20-29 
-  geom_segment(aes(
-    x = 8.55, xend = 8.55,
-    y = 7.5, yend = 9.4),
-    color = "gray85")+
-  geom_text(aes(
-    x = 8.65, y = 8.5),
-    color = "gray25", size = rel(3.65), hjust = 0, fontface = "plain", lineheight = .9,
-    label = paste0(round(100*(ab_age %>% group_by(age) %>% filter(age == "20-24" | age == "25-29" ) %>% 
-                                ungroup() %>%  summarise(sum(count)))/(ab_age %>% ungroup() %>% summarise(sum(count)))),
-                   "% of\nall abortions"))+
-  t_theme()+
-  theme(
-    axis.text.y   = element_markdown(color = "dark gray", size = 8),
-    #axis.title  = element_blank(),
-    axis.title.x  = element_blank(),
-    axis.ticks  = element_blank(),
-    axis.line   = element_line(color = "light gray", size = .25),
-    plot.background  = element_rect(color = NA, fill  = panel_c),
-    panel.background = element_rect(color = NA, fill = panel_c),
-    panel.grid.major.y = element_blank(),
-    panel.grid.minor.y = element_blank(),
-    legend.background = element_rect(color = NA, fill = NA),
-    legend.text = element_text(colour="gray40", size = 7),
-    legend.title = element_text(colour="gray40", size = 8),
-    legend.direction = "horizontal",
-    legend.position = c(.78,1.075),
-    plot.title = element_textbox_simple(size = rel(1.5), color = "gray25", 
-                 hjust = 0,lineheight = 1, family = "serif", face = "plain", 
-                 margin = unit(c(0, .2, 6, 0), "pt")),
-    
-  )
-```
 
 
 
-Abortion by month {data-navmenu="Charts"}
-===================================== 
 
-```{r import month data}
-mnth <- read_csv("Exported_Data/month_ab_IN_res_clean.csv")
-```
 
-```{r set month colors, order}
-# set colors 
 
-# panel color
-panel_c <- "#fdfdf2"
 
-# monthly color 
-mc <- "#1a9641"
-avgc <- "#7b3294"
-# high average month 
-h_avgc <- "#006837"  
-# low average month
-l_avgc <- "#78c679"
-# avg month
-avg_mc <- "#af8dc3"
 
-mnth$month <- factor(mnth$month, levels = c(
-  "January", "February", "March", "April", "May", "June", "July","August",
-  "September", "October", "November", "December"))
 
-# short month labels
-s_m_lab <-  c("January" = "Jan.",
-              "February" = "February",
-              "March" = "Mar.", 
-              "April" = "April", 
-              "May" = "May",
-              "June" = "June",
-              "July" = "July",
-              "August" = "Aug.",
-              "September" = "September",
-              "October" = "Oct.",
-              "November" = "Nov.",
-              "December" = "Dec.")
 
-# month labels colors 
 
-m_lab_c <- c("January"    = "gray70",
-             "February"   = l_avgc,
-             "March"     = "gray70",
-             "April"     = "gray70",
-             "May"       = "gray70",
-             "June"      = "gray70",
-             "July"      = "gray70",
-             "August"    = "gray70",
-             "September" = h_avgc,
-             "October"   = "gray70",
-             "November"  = "gray70",
-             "December"  = "gray70")
-```
 
-```{r, calculate percents, make plot showing pct change from mean}
-# what is the percent above or below the average monthly total for each month?
-t <-  mnth %>% 
-  ungroup() %>% 
-  group_by(month) %>% 
-  mutate(mn_avg = mean(res),
-         dif_mn = res-mn_avg,
-         pct_df_m = (dif_mn/mn_avg)*100) 
 
-ggplot()+ theme_classic()+
-  # line for monthly totals
-  geom_segment(data = mnth,
-               aes(x=2013.3, xend = 2021,
-                   y = 0, yend = 0),
-               size = .25, color = "gray70")+
-  geom_line(data = mnth %>% 
-              ungroup() %>% 
-              group_by(month) %>% 
-              mutate(mn_avg = mean(res),
-                     dif_mn = res-mn_avg,
-                     pct_df_m = (dif_mn/mn_avg)*100),
-            aes(year, pct_df_m, group = month), 
-            size = .3, color = "gray92", show.legend = F)+
-  geom_line(data = mnth %>% 
-              ungroup() %>% 
-              group_by(month) %>% 
-              mutate(mn_avg = mean(res),
-                     dif_mn = res-mn_avg,
-                     pct_df_m = (dif_mn/mn_avg)*100) %>% filter(month == "September"),
-            aes(year, pct_df_m, group = month), 
-            size = .75, color = h_avgc, show.legend = F)+
-  geom_line(data = mnth %>% 
-              ungroup() %>% 
-              group_by(month) %>% 
-              mutate(mn_avg = mean(res),
-                     dif_mn = res-mn_avg,
-                     pct_df_m = (dif_mn/mn_avg)*100) %>% filter(month == "February"),
-            aes(year, pct_df_m, group = month), 
-            size = .75, color = l_avgc, show.legend = F)+
-  
-  geom_text_repel(data = mnth %>% 
-                    ungroup() %>% 
-                    group_by(month) %>% 
-                    mutate(mn_avg = mean(res),
-                           dif_mn = res-mn_avg,
-                           pct_df_m = (dif_mn/mn_avg)*100) %>% filter(year == 2021),
-    #data= t %>% filter(year == 2021),
-                  aes(year, pct_df_m, label = s_m_lab),
-                  xlim = c(2021.7), 
-                  hjust = .25,
-                  point.padding = 1.25,
-                  nudge_y = 0, 
-                  nudge_x = .7,
-                  force = 2,
-                  color = m_lab_c, 
-                  segment.color = "gray75",
-                  size = rel(2.35), 
-                  fontface = "plain", 
-                  direction = "y",
-                  segment.size = 0.1,
-                  min.segment.length = 1.5,
-                  seed = 2, 
-  )+
-  geom_textbox(data = mnth %>% 
-                 ungroup() %>% 
-                 group_by(month) %>% 
-                 mutate(mn_avg = mean(res),
-                        dif_mn = res-mn_avg,
-                        pct_df_m = (dif_mn/mn_avg)*100),
-    aes(x= 2019.85, y = 15.15),
-    label = paste0("<span style = 'color:",h_avgc,"'>September</span> 
-                went from well **below** its monthly average in 2019 to well **above** it in 2020."),
-    label.colour = NA, fill = panel_c,
-    size = rel(3.25), color = "gray50", 
-    hjust = 1, box.color = NA)+
-  geom_textbox(data = mnth %>% 
-                 ungroup() %>% 
-                 group_by(month) %>% 
-                 mutate(mn_avg = mean(res),
-                        dif_mn = res-mn_avg,
-                        pct_df_m = (dif_mn/mn_avg)*100),
-    aes(x= 2017, y = -17.9),
-    label = paste0("<span style = 'color:",h_avgc,"'>**September**</span> 
-                was", 
-                   round(abs(t$pct_df_m[t$year == 2019 & t$month == "September"])),
-                   "% below its annual average in 2019."),
-    label.colour = NA, fill = panel_c,
-    size = rel(2.5), color = "gray50", 
-    hjust = 0, box.color = NA)+
-  geom_segment(aes(
-    x = 2019.67, xend = 2019.95,
-    y = 13, yend = 11.95), 
-    color = "gray10", linewidth = .15)+
-  geom_textbox(
-    aes(x= 2013.3, y = 3.65),
-    label = "Above 0 = more than the monthly average.", 
-    label.colour = NA, fill = panel_c,
-    size = rel(2), color = "gray50", 
-    hjust = 0, box.color = NA,   width = unit(.6, "inch"))+
-  geom_textbox(
-    aes(x= 2013.3, y = -3.65),
-    label = "Below 0 = less than the monthly average.", 
-    label.colour = NA, fill = panel_c,
-    size = rel(2), color = "gray50", 
-    hjust = 0, box.color = NA,   width = unit(.6, "inch"))+
-  
-  
-  scale_y_continuous(limits = c(-20,20),
-                     breaks = c(-20, -10, 0, 10, 20),
-                     labels = c("-20%", "-10%", "0", "10%", "20%"))+
-  scale_x_continuous(limits = c(2013.3, 2022),
-                     breaks = seq(2013, 2022, by = 1),
-                     labels = c( "", "2014", "2015", "2016", "2017", "2018",
-                                 "2019", "2020", "2021", ""))+
-  t_theme()+
-  #facet_wrap(~ month, scales = "free")+
-  theme(
-    strip.background = element_blank(),
-    strip.text = element_text(color = "gray35", hjust = 0),
-    panel.grid.major.y = element_blank(),
-    panel.background = element_rect(fill = panel_c,
-                                    color = panel_c),
-    plot.background = element_rect(fill = panel_c,
-                                   color = panel_c),
-    axis.title.y = element_blank(),
-    axis.title.x = element_blank()
-  )+
-  labs(title = paste0("The number of abortions to Indiana residents in a month fluctuates above 
-  and below its eight-year average, sometimes dramatically. Between 2014 and 
-  2021,<span style = 'color:",h_avgc,"'> ",
-                      month.name[as.numeric(t %>% mutate(ab_pct_cg = pct_df_m-lag(pct_df_m)) %>% 
-                                              arrange(desc(abs(ab_pct_cg))) %>% ungroup() %>% slice(1) %>% select(month))],"
-  </span>had the highest year to year change, shifting <span style = 'color:",h_avgc,"'>",
-                      round(t %>% mutate(ab_pct_cg = pct_df_m-lag(pct_df_m)) %>% arrange(desc(abs(ab_pct_cg))) %>% 
-                              ungroup() %>% slice(1) %>% select(ab_pct_cg)),
-                      "% </span>from 2019 to 2020. <span style = 'color:",l_avgc,"'> ",
-                      month.name[as.numeric(mnth %>% group_by(month) %>% mutate(mn_df = 100*(res-lag(res))/lag(res)) %>% ungroup() %>% 
-                                              group_by(month) %>% summarise(m = mean(mn_df, na.rm = T)) %>%  arrange(abs(m)) %>% select(month) %>% slice(1))],"
-  </span>had the lowest average annual change."),
-       
-       subtitle = "Each line shows how much a single month's abortion totals differ
-  from the month's multi-year average.",      
-       caption = "<br>**Data:** 'www.in.gov/health/vital-records/vital-statistics/terminated-pregnancy-reports'<br>
-  **Graphic:** Ted Schurter 2023")  
-```
 
-Abortion by month and year {data-navmenu="Charts"}
-===================================== 
 
-```{r faceted month by year}
-
-mnth2 <- mnth
-mnth2$m2 <- mnth2$month
-# remove original month column so new dataframe isn't faceted by it when month is called
-mnth2$month <- NULL
-
-mnth2$y2 <- mnth$year
-mnth2$month <- NULL
-mnth2$year <- NULL
-
-
-yr_tot_lab <- mnth %>% group_by(year) %>% 
-  mutate(annual = sum(res)) %>% 
-  ungroup() %>% 
-  mutate(mn_an = mean(annual),
-         lab = paste0(if_else(annual>mean(annual), "Above annual average", "Below annual average"))) %>% 
-  ungroup() %>% 
-  mutate(
-    pct = round((annual-mean(annual))/annual*100),
-    col = if_else(pct>0, "black", "red"))
-
-# create duplicate year column for faceting
-mnth2$y2 <- mnth$year
-mnth2$month <- NULL
-mnth2$year <- NULL
-
-mnth %>% group_by(month) %>% 
-  mutate(av = round(mean(res))) %>% 
-  ggplot()+ theme_classic()+
-  # lines for all months
-  geom_line(data = mnth2,
-            aes(m2, res, group = y2), color = "gray92", size = .2)+
-  # line for monthly average
-  geom_line(data = mnth %>% group_by(month) %>%
-              summarise(res = mean(res)) %>%
-              ungroup(),
-            aes(month, res, group = 1),  color = avgc, show.legend = F)+
-  # line for annual average
-  geom_segment(data = mnth %>%
-                 summarise(res = mean(res)) %>%
-                 ungroup(),
-               aes(x = 1, xend = 12,
-                   y = res, yend = res), size = .1, color = "gray30", 
-               #linetype = "dotted", 
-               show.legend = F)+
-  # line for monthly totals
-  geom_line(
-    aes(month, res, group = year), color = mc, show.legend = F)+
-  # label for monthly average
-  geom_text(data = mnth %>% filter( year == "2014"),
-            aes(x= 1.3, y = 560, label = "Overall\naverage"),
-            size = rel(2), color = "gray50", hjust = 0, lineheight = .8, 
-            vjust = 1)+
-  # line for label for monthly average
-  geom_segment(data = mnth %>% filter( year == "2014"),
-               aes(x=1.1, xend = 1.1,
-                   y = 550, yend = 600),
-               size = .05, color = avgc)+
-  # total abortions for year
-  geom_richtext(data = yr_tot_lab,
-                aes(x= 8.2, y = 770, 
-                    label = paste0(pct,"% ",lab," ")),
-                label.colour = NA, fill = panel_c,
-                size = rel(2.15), color = yr_tot_lab$col, hjust = 0)+
-  # invisible mark to preserve equal y scale for each facet
-  geom_point(aes(x=1, y = 500), color = panel_c)+
-  scale_y_continuous(limits = c(400,800),
-                     breaks = c(400, 600, 800),
-                     labels = c("400", "600", "800"))+
-  scale_x_discrete(
-    breaks = c("January", "February", "March", "April","May", "June",
-               "July", "August", "September", "October", "November","December"),
-    labels = c("Jan","Feb","Mar", "April", "May", "June", "July",
-               "Aug", "Sept", "Oct", "Nov", "Dec"))+
-  t_theme()+
-  facet_wrap(~ year, scales = "free")+
-  theme(
-    strip.background = element_blank(),
-    strip.text = element_text(color = "gray35", hjust = 0),
-    panel.grid.major.y = element_blank(),
-    panel.background = element_rect(fill = panel_c,
-                                    color = panel_c),
-    plot.background = element_rect(fill = panel_c,
-                                   color = panel_c),
-    axis.text = element_text(color = "gray55",
-                             size  = rel(.4)),
-    axis.title.y = element_blank(),
-    axis.title.x = element_blank()
-  )+
-  labs(title = paste0("The individual <span style = 'color:",avgc,"'>monthly average</span> of Indiana resident abortions from 2014 to 2021 reveals annual trends 
-  and how far a month’s<span style = 'color:",mc,"'> 
-  totals</span> fluctuate from its average in a given year."),
-       subtitle = paste0("The average number of monthly abortions is ", 
-                         round(mean(mnth$res)),
-                         "; the average annual total is ",
-                         prettyNum(round(mnth %>% group_by(year) %>% summarise(tot = sum(res)) %>% summarise(mean(tot))), big.mark = ",", scientific = FALSE),"."),
-       caption = "<br>**Data:** 'www.in.gov/health/vital-records/vital-statistics/terminated-pregnancy-reports'<br>
-  **Graphic:** Ted Schurter 2023")
-```
-
-
-
-Abortion procedure by education {data-navmenu="Charts"}
-===================================== 
-
-```{r include = F}
-
-knitr::opts_chunk$set(eval = T,
-                      echo = F,
-                      include = T,
-                      warning = F,
-                      dev = "png",
-                      dpi = 200,
-                      cache = FALSE,
-                      fig.align  = "left",
-                      fig.width  =  10,
-                      fig.height =  5.86,
-                      #fig.asp = 1.83,
-                      out.width  = "90%",
-                      out.height = "90%"
-                      )
-
-```
-
-```{r import education data}
-ed <- read_csv("Exported_Data/ed_ab.csv")
-```
-
-```{r create line chart}
-# create line chart ####
-
-# make dataframes for lines with and without color
-top_ed <- ed %>% 
-  filter(Level == "High school diploma or GED" |
-        Level == "Some college credit, no degree")
-
-top_ed_lab <- top_ed %>% filter(Year == 2021)
-
-bottom_ed <- ed %>% 
-  filter(Level != "High school diploma or GED" &
-         Level != "Some college credit, no degree")
-
-bottom_ed_lab <- bottom_ed %>% filter(Year == 2021)
-
-# titles, caption, colors ####
-
-# high school color
-hsc <- "#5ab4ac"
-# some college color
-scc <- "#d8b365"
-
-# set colors for top two categories
-ed_cols <- c("High school diploma or GED" = hsc,
-             "Some college credit, no degree" = scc)
-
-
-title <- paste0(
-  "<span style = 'color:black;'>Most Indiana residents who get an abortion have not 
-  completed higher levels of education.</span>")
-
-subtitle <- paste0(
-  "<span style = 'color:black;'>On average, <span style = 'color:",hsc,";'>",
-  round(sum(ed$Count[ed$Level == "High school diploma or GED"])/sum(ed$Count)*100),
-  "%</span> have a <span style = 'color:",hsc,";'>high school diploma or GED </span> and <span style = 'color:",scc,";'>",
-  round(sum(ed$Count[ed$Level == "Some college credit, no degree"])/sum(ed$Count)*100),
-  "%</span> have <span style = 'color:",scc,";'>some college credit, but 
-  no degree.</span>")
-
-caption <- "<br>**Data:** 'www.in.gov/health/vital-records/vital-statistics/terminated-pregnancy-reports'<br>
-**Graphic:** Ted Schurter 2023"
-
-#format y scale 
-pct1 <- scales::percent_format(scale = 1)
-# background color 
-panel_c <- "#fdfdf2"
-
-ggplot()+
-  # top two categories
-  geom_line(data = top_ed,
-            aes(Year, Percent, color = Level, group = Level),
-            show.legend = F, size = .65)+
-  geom_text(data = top_ed_lab,
-            aes(2021, Percent, color = Level),
-            label = top_ed_lab$Level, show.legend = F,
-            vjust = 0, hjust = -.15)+
-  # remaining categories
-  geom_line(data = bottom_ed,
-          aes(Year, Percent, group = Level),
-          show.legend = F, color = "gray")+
-  geom_text_repel(data = bottom_ed_lab,
-            aes(2021, Percent), xlim = 2021.25,
-            label = bottom_ed_lab$Level, show.legend = F,
-            vjust = .15, hjust = "left", color = "gray", size = 3,
-            min.segment.length = .5, point.padding = 2.5)+
-  scale_x_continuous(limits = c(2014, 2023),
-                     breaks = seq(2014, 2023, by= 1),
-                     labels = c("2014", "2015", "2016", "2017", "2018", "2019",
-                                "2020", "2021", "", ""))+
-  scale_color_manual(values = ed_cols)+
-  # add grid lines
-  geom_segment(aes(x = 2014, xend = 2021,
-                   y = c(10,20,30,40), yend = c(10,20,30,40)),
-               color = "gray80", size = .5, linetype = "dotted")+
-  scale_y_continuous(labels = scales::percent_format(scale = 1))+
-  t_theme()+
-  coord_cartesian(clip = "off")+
-  theme(
-    panel.grid.major.y = element_blank(),
-    axis.title.y = element_blank(),
-    axis.title.x = element_blank(),
-    panel.background = element_rect(fill = panel_c),
-    plot.background = element_rect(fill = panel_c),
-  )+
-  labs(title = title,
-       subtitle = subtitle,
-       caption = caption
-       )
-  
-```
-
-
-Abortion rate by county and year original  {data-navmenu="Explore the data"}
-=====================================  
-Column {data-width=600}
-------------------------------------------------------------------------
-
-```{r}
-per_cap <- per_cap %>% 
-  select(year, Name, fem_pop, Count, rate)
-
-
-datatable(per_cap, 
-          colnames = c("Year", "County", "Female\npopulation", "Number of\nabortions", "Abortion\nrate\nper 1,000"),
-          caption = htmltools::tags$caption(
-            style = 'caption-side: top; text-align: center;',
-    "Abortion rate by county and year.", style = "color:black"),
-          rownames=FALSE, 
-          filter = "top", 
-          extensions = c('Buttons', 'FixedColumns'),
-          options = list(pageLength=10, 
-                         scrollX=T,
-                         dom = 'Bfrtip',
-                         scrollY = '250px',
-                         buttons = c('csv', 'excel')
-                         #columnDefs = list(list(className = 'dt-center', targets = 0:4))
-                         )) %>% 
-  formatRound(c('fem_pop', "Count"), digits = 0)
-
-```
-
-Abortion facility totals by year and location {data-navmenu="Explore the data"}
-=====================================  
-Column {data-width=600}
-------------------------------------------------------------------------
-
-
-```{r provider locations}
-prov <- read_csv("Exported_Data/prov.csv")
-
-prov %>% mutate(pct_by_yr = pct_by_yr/100) %>% select(-address) %>% 
-datatable(prov %>% select(c(year, facility, county, count_by_yr, pct_by_yr)),
-                         
-          colnames = c("Year", "Facility", "County", "Count\nby year",  "Percent\nby year"),
-          caption = htmltools::tags$caption(
-            style = 'caption-side: top; text-align: center;',
-    "Abortion facility totals by year.", style = "color:black"),
-          rownames=FALSE, 
-          filter = "top", 
-          extensions = c('Buttons', 'FixedColumns'),
-          options = list(pageLength=10, 
-                         scrollX=T,
-                         dom = 'Bfrtip',
-                         scrollY = '250px',
-                         buttons = c('csv', 'excel')
-                         #columnDefs = list(list(className = 'dt-center', targets = 0:4))     
-                         )) %>% 
-  formatPercentage('pct_by_yr', 2) %>% 
-  formatRound(c("count_by_yr"), digits = 0)
-```
-
-
-Abortion totals by age of mother, year {data-navmenu="Explore the data"}
-=====================================  
-Column {data-width=600}
-------------------------------------------------------------------------
-
-```{r age}
-ab_age %>% mutate(pct = pct/100) %>% select(-num) %>% select(c(year, age, count, pct,)) %>% 
-datatable(colnames = c("Year", "Age", "Count", "Percent\nby year"),
-          caption = htmltools::tags$caption(
-            style = 'caption-side: top; text-align: center;',
-    "Abortion totals by age of mother, year.", style = "color:black"),
-         
-          
-          rownames=FALSE, 
-          filter = "top", 
-          extensions = c('Buttons', 'FixedColumns'),
-          options = list(pageLength=10, 
-                         scrollX=T,
-                         dom = 'Bfrtip',
-                         scrollY = '250px',
-                         buttons = c('csv', 'excel')
-                         #columnDefs = list(list(className = 'dt-center', targets = 0:3))     
-                         )) %>%
-  formatPercentage('pct', 2) %>% 
-  formatRound(c("count"), digits = 0)
-```
-
-
-Abortion totals by race {data-navmenu="Explore the data"}
-=====================================  
-Column {data-width=600}
-------------------------------------------------------------------------
-
-```{r race2}
-
-both_pop %>% select(race, avg, avg_pct, total, cba_pct, count, pct_race) %>% 
-  mutate_at(c(3,5,7), ~ . /100) %>% 
-             mutate_at(c(3:5,7), round,3) %>%
-             mutate_at(c(2,4,6), round) %>% 
-  
-  
-  
-datatable(colnames = c("Population", "Percent of\ntotal population", "Childbearing age\npopulation",
-                       "Percent of\npopulation of\nchildbearing age", "Abortions", "Percent of                  childbearing\npopulation that had\nabortion"),
-          caption = htmltools::tags$caption(
-            style = 'caption-side: top; text-align: center;',
-    "Average race population and abortion totals 2014 to 2021.", style = "color:black"),
-         
-          
-          rownames=FALSE, 
-          filter = "top", 
-          extensions = c('Buttons', 'FixedColumns'),
-          options = list(pageLength=10, 
-                         scrollX=T,
-                         dom = 'Bfrtip',
-                         scrollY = '250px',
-                         buttons = c('csv', 'excel')
-                         #columnDefs = list(list(className = 'dt-center', targets = 0:3))
-                         )) %>% 
-  formatPercentage(c("avg_pct", "pct_race","cba_pct"), 2) %>% 
-  formatRound(c('avg', "total",  "count"), digits = 0)
-```
-
-
-Abortion totals by education {data-navmenu="Explore the data"}
-=====================================  
-Column {data-width=600}
-------------------------------------------------------------------------
-
-```{r ed table}
-
-
-ed %>% mutate(Percent = Percent/100) %>% 
-datatable(colnames = c("Year", "Education Level", "Count", "Percent"),
-  caption = htmltools::tags$caption(
-          style = 'caption-side: top; text-align: center;',
-    "Abortion totals by education 2014 to 2021.", style = "color:black"),
-          rownames=FALSE, 
-          filter = "top", 
-          extensions = c('Buttons', 'FixedColumns'),
-          options = list(pageLength=10, 
-                         scrollX=T,
-                         dom = 'Bfrtip',
-                         scrollY = '250px',
-                         buttons = c('csv', 'excel')
-                         #columnDefs = list(list(className = 'dt-center', targets = 0:3))
-                         )) %>% 
-  formatPercentage("Percent", 2) %>% 
-  formatRound("Count", digits = 0)
-```
-
-Abortion totals by month {data-navmenu="Explore the data"}
-=====================================  
-Column {data-width=600}
-------------------------------------------------------------------------
-
-```{r month table}
-
-mnth <- read_csv("Exported_Data/month_ab_clean.csv")
-
-
-mnth %>% 
-datatable(colnames = c("Year", "Month", "Resident", "Non-resident"),
-  caption = htmltools::tags$caption(
-          style = 'caption-side: top; text-align: center;',
-    "Abortion totals by month 2014 to 2021.", style = "color:black"),
-          rownames=FALSE, 
-          filter = "top", 
-          extensions = c('Buttons', 'FixedColumns'),
-          options = list(pageLength=10, 
-                         scrollX=T,
-                         dom = 'Bfrtip',
-                         scrollY = '250px',
-                         buttons = c('csv', 'excel')
-          ))
-                         #columnDefs = list(list(className = 'dt-center', targets = 0:3))
-  #                        )) %>% 
-  # formatPercentage("Percent", 2) %>% 
-  # formatRound("Count", digits = 0)
-```
