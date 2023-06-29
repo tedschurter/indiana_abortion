@@ -20,8 +20,7 @@
 [20230105_abortion_education.R]((https://github.com/tedschurter/indiana_abortion/blob/main/Scripts/20230105_abortion_education.R))| Import, clean and visualize count of abortion by education from 2014 to 2021. |[ed_ab.csv](https://github.com/tedschurter/indiana_abortion/blob/main/Exported_Data/ed_ab.csv)|
 [20230516_monthly_totals_wr.R]((https://github.com/tedschurter/indiana_abortion/blob/main/Scripts/20230516_monthly_totals_wr.R))| Import and clean count of abortion by month from 2014 to 2021.|[month_ab_clean.csv](https://github.com/tedschurter/indiana_abortion/blob/main/Exported_Data/Exported_Data/month_ab_clean.csv),<br>[month_ab_IN_res_clean.csv](https://github.com/tedschurter/indiana_abortion/blob/main/Exported_Data/Exported_Data/month_ab_IN_res_clean.csv)|
 [20230516_monthly_totals_plots.R]((https://github.com/tedschurter/indiana_abortion/blob/main/Scripts/20230516_monthly_totals_plots.R))| Create plots of monthly abortion data|
-
-
+[20230629_non_resident_ab.R]((https://github.com/tedschurter/indiana_abortion/blob/main/Scripts/20230629_non_resident_ab.R))| Import data of non-resident abortions by state of residence and year for 2019 to 2021. Create combo bar chart and inset map to show data, locations. |[nonresident_ab_19_21.csv](https://github.com/tedschurter/indiana_abortion/blob/main/Exported_Data/nonresident_ab_19_21.csv)
 
 
 

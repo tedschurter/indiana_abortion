@@ -72,6 +72,8 @@ library(ggmap)
 library(ggrepel)
 library(osmdata)
 library(rmapshaper)
+library(patchwork)
+library(broman)
 ```
 
 ```{r custom theme}
@@ -140,7 +142,7 @@ t_theme <- function(base_size = 10){
 
 #### Indiana was the first state to pass a [new abortion law](https://iga.in.gov/laws/2022/ic/titles/16#16-34) after the U.S. Supreme Court [struck down](https://www.supremecourt.gov/opinions/21pdf/19-1392_6j37.pdf) Roe v. Wade on June 24, 2022. Passed six weeks after the high court’s Dobbs v. Jackson Women's Health Organization decision, Indiana's law prohibits abortion except in cases of incest or rape, fatal fetal anomaly, or to save or preserve the life of the mother. The ban was short-lived as judges in [two](https://thehill.com/homenews/state-watch/3760751-second-judge-blocks-indiana-abortion-ban/) separate lawsuits blocked it while the cases are litigated.
 
-#### While those cases proceed, abortion remains legal up to 22 weeks of gestational age. Though Indiana law cites post-fertilization age, most analysis, including that by the Indiana Department of Health (IDH), instead use gestational age, which is approximately two weeks greater than post-fertilization age. Indiana's [Terminated Pregnancy Reports](https://www.in.gov/health/vital-records/vital-statistics/terminated-pregnancy-reports/), published annually by the IDH, outline the details of abortion in the state. If the ban is upheld, they will also serve as a historical record, illuminating the context of abortion and revealing where it was most common and among what populations.
+#### While those cases proceed, abortion remains legal up to 22 weeks of gestational age. Though Indiana law cites post-fertilization age, most analyses, including that by the Indiana Department of Health (IDH), instead use gestational age, which is approximately two weeks greater than post-fertilization age. Indiana's [Terminated Pregnancy Reports](https://www.in.gov/health/vital-records/vital-statistics/terminated-pregnancy-reports/), published annually by the IDH, outline the details of abortion in the state. If the ban is upheld, they will also serve as a historical record, illuminating the context of abortion and revealing where it was most common and among what populations.
 
 #### If Indiana’s abortion ban is overturned, the pending outcome of federal lawsuits may impact its practice within the state and beyond. U.S. District Judge Matthew Kacsmaryk [ordered](https://www.reuters.com/world/us/texas-judge-suspends-approval-abortion-pill-what-happens-next-2023-04-08/) in April 2023 a hold on federal approval of the drug mifepristone, one of two drugs commonly used in medication abortions, while the case moves forward challenging its FDA approval. The U.S. Supreme Court ultimately issued a [stay](https://www.google.com/url?sa=t&rct=j&q=&esrc=s&source=web&cd=&cad=rja&uact=8&ved=2ahUKEwjavKO8u9T_AhVMkIkEHf6CC-kQFnoECBQQAQ&url=https%3A%2F%2Fapnews.com%2Farticle%2Fsupreme-court-abortion-pill-mifepristone-access-f781488016640bf571faf36096339ea4&usg=AOvVaw2nbN4gg6wM_CX2hSpwxF_M&opi=89978449) on that decision, preserving access to the drug while the case is decided by the Fifth Circuit Court. 
 
@@ -731,7 +733,7 @@ theme(
   labs(
     title = title,
     subtitle  = subtitle,
-    caption = "**Abortion Data:**2014:2017 'www.in.gov/health/vital-records/vital-statistics/terminated-pregnancy-reports/'<br>
+    caption = "**Abortion Data:** 2014:2017 'www.in.gov/health/vital-records/vital-statistics/terminated-pregnancy-reports/'<br>
     **Graphic:** Ted Schurter 2023",
     alt = "A bar chart of abortion procedure by gestational age from 2014 to 2017 showing 99% of all abortions happen by 13 weeks weeks and medication abortions were about 30% of all."
   ) +
@@ -1297,7 +1299,7 @@ sf_per_cap <- sf_per_cap %>% select(c("Year"= "year", "County" = "Name", "Female
 
 ```
 
-#### Abortion rates also vary by county. `r str_to_sentence(english(round(per_cap %>% filter(annual_co_med < mean(per_cap$rate, na.rm = T)) %>% group_by(Name) %>% nrow()/(92*8)*100)))` counties out of `r per_cap %>% filter(year ==2014) %>% nrow()` had rates below the average county rate of `r round(mean(per_cap$rate, na.rm=T),2)` abortions per 1,000 women of childbearing age (10 to 49 years-old). At `r per_cap %>% arrange(desc(rate)) %>% select(Name, annual_co_med) %>% slice(1) %>% pull(2)`, `r per_cap %>% arrange(desc(rate)) %>% select(Name, annual_co_med) %>% slice(1) %>% pull(1)` County's average rate is `r round(per_cap %>% arrange(desc(annual_co_med)) %>% select(Name, rate) %>% slice(1) %>% pull(2)/mean(per_cap$rate, na.rm=T))` times higher than the state's county average; `r per_cap %>% arrange((annual_co_med)) %>% select(Name, annual_co_med) %>% slice(1) %>% pull(1)` County has the lowest average rate at `r per_cap %>% arrange((annual_co_med)) %>% select(Name, annual_co_med) %>% slice(1) %>% pull(2)` abortions per 1,000 women of childbearing age. 
+#### Abortion rates also vary by county. `r str_to_sentence(english(round(per_cap %>% filter(annual_co_med < mean(per_cap$rate, na.rm = T)) %>% group_by(Name) %>% nrow()/(92*8)*100)))` Indiana counties out of `r per_cap %>% filter(year ==2014) %>% nrow()` had rates below the average county rate of `r round(mean(per_cap$rate, na.rm=T),2)` abortions per 1,000 women of childbearing age (10 to 49 years-old). At `r per_cap %>% arrange(desc(rate)) %>% select(Name, annual_co_med) %>% slice(1) %>% pull(2)`, `r per_cap %>% arrange(desc(rate)) %>% select(Name, annual_co_med) %>% slice(1) %>% pull(1)` County's average rate is `r round(per_cap %>% arrange(desc(annual_co_med)) %>% select(Name, rate) %>% slice(1) %>% pull(2)/mean(per_cap$rate, na.rm=T))` times higher than the state's county average; `r per_cap %>% arrange((annual_co_med)) %>% select(Name, annual_co_med) %>% slice(1) %>% pull(1)` County has the lowest average rate at `r per_cap %>% arrange((annual_co_med)) %>% select(Name, annual_co_med) %>% slice(1) %>% pull(2)` abortions per 1,000 women of childbearing age. 
 
 ##  {.tabset}
 
@@ -2009,7 +2011,7 @@ both_pop <- read_csv("Exported_Data/both_pop.csv") %>%
 
 ```
 
-####  Between 2014 and 2021, the abortion rate for women of childbearing age in Indiana was `r round(sum(both_pop$count)/sum(both_pop$total)*1000,1)` per 1,000 women of childbearing age, though it varies by race. In that time, white women made up `r round(both_pop$avg_pct[both_pop$race == "White"])`% of the state's female population and received `r round(both_pop$ab_pct[both_pop$race == "White"])`% of all abortions, though they have the smallest population of childbearing age women, `r round(both_pop$cba_pct[both_pop$race == "White"])`%. The rate of abortion within that group is fourth-lowest among all races. Black women were on average `r round(both_pop$avg_pct[both_pop$race == "Black"])`% of the female population, had the second-lowest percentage of childbearing age women at `r round(both_pop$cba_pct[both_pop$race == "Black"])`%, and had the highest rate of abortion per 1,000 women of childbearing age at `r round(both_pop$race_pct[both_pop$race == "Black"])`%. Asians, the third-largest racial group making up `r round(both_pop$avg_pct[both_pop$race == "Asian"])`% of the population, had the highest percentage of childbearing age women, `r round(both_pop$cba_pct[both_pop$race == "Asian"])`%, and the third-highest abortion rate. 
+####  Between 2014 and 2021, the abortion rate for women of childbearing age in Indiana was `r round(sum(both_pop$count)/sum(both_pop$total)*1000,1)` per 1,000, though it varies by race. In that time, white women made up `r round(both_pop$avg_pct[both_pop$race == "White"])`% of the state's female population and received `r round(both_pop$ab_pct[both_pop$race == "White"])`% of all abortions, though they have the smallest population of childbearing age women, `r round(both_pop$cba_pct[both_pop$race == "White"])`%. The rate of abortion within that group is fourth-lowest among all races. Black women were on average `r round(both_pop$avg_pct[both_pop$race == "Black"])`% of the female population, had the second-lowest percentage of childbearing age women at `r round(both_pop$cba_pct[both_pop$race == "Black"])`%, and had the highest rate of abortion per 1,000 women of childbearing age at `r round(both_pop$race_pct[both_pop$race == "Black"])`%. Asians, the third-largest racial group making up `r round(both_pop$avg_pct[both_pop$race == "Asian"])`% of the population, had the highest percentage of childbearing age women, `r round(both_pop$cba_pct[both_pop$race == "Asian"])`%, and the third-highest abortion rate. 
 
 
 ```{r race_plot_colors}
@@ -3307,6 +3309,206 @@ ggplot()+
        caption = caption,
        alt = "Line chart of percent of abortions in Indiana that occured in hospitals by the hospitals showing less than 1% of abortions occured in hospitals and Sidney & Lois Eskenazi Hospital accounted for 63% of them.")
 ```
+
+---
+
+```{r, import nonresident data}
+nres <- read_csv("Exported_Data/nonresident_ab_19_21.csv")
+```
+
+
+#### Indiana began reporting the number of residents from nearby states who received abortions in Indiana in 2019. Of the five listed, `r nres %>% group_by(state) %>% summarise(tot = sum(abortions)) %>% arrange(desc(tot)) %>% slice(1) %>% pull(1)` had the most with `r nres %>% group_by(state) %>% summarise(tot = sum(abortions)) %>% arrange(desc(tot)) %>% slice(1) %>% pull(2)`, four times as many as `r nres %>% group_by(state) %>% summarise(tot = sum(abortions)) %>% arrange(desc(tot)) %>% slice(2) %>% pull(1)`, the next highest state. 
+
+## {.tabset}
+
+### Chart 
+
+```{r, update t_theme for combo plot - patchwork conflict in Rmd}
+t_theme <- function(base_size = 10){
+  
+  theme_classic() %+replace%
+    
+    theme( 
+      #grid elements
+      panel.grid.major.y = element_line(color = "gray85", size = .25),
+      #panel.grid.major.y = element_blank(),
+      panel.grid.major.x = element_blank(), 
+      axis.line = element_blank(),
+      axis.ticks = element_blank(), 
+      
+      #axis.line = element_line(color = "gray90"),
+      #axis.line.y = element_blank(),
+      
+     axis.text = element_text(color = "gray55",
+                               size  = rel(.65)),
+      axis.title.x = element_blank(),
+      # element_text(color = "gray55",
+      # size = rel(.65), hjust = 0),
+      axis.title.y = element_blank(),
+      # element_text(color = "gray55",
+      #             size = rel(.6)),
+      
+      plot.title = element_textbox_simple(size = rel(1.5), color = "gray25", 
+                                          hjust = 0,lineheight = 1, 
+                                          margin = margin(0.2, 0, .2, 0, unit = "cm"),
+                                          family = "serif",face = "plain"),
+      plot.subtitle = element_textbox_simple(size = rel(1.1), color = "gray40", hjust = 0,
+                                             lineheight = 1,margin = margin(0, 0, .4, 0, unit = "cm"),),
+      plot.caption = element_textbox_simple(family = "sans", size = rel(.7),
+                                            color = "gray40", halign = 1,
+                                            lineheight = 1.2),
+      plot.title.position = "plot",
+      plot.caption.position = "panel", 
+      plot.margin = margin(.5, .5, .5,.5, unit = "cm"),
+      plot.background = element_rect(fill  = panel_c,
+                                     color = panel_c),
+      panel.background = element_rect(fill = panel_c,
+                                      color = panel_c)
+    )
+}
+```
+
+
+```{r, chart for nonresident totals,  fig.width=10, fig.alt= "Bar chart of non-resident abortion totals for Illinois, Kentucky, Ohio, Michigan and Tennessee from 2019 to 2021 with an inset map of those locations showing Kentucky had four times as many non-resident abortions in that time as Illinois, the second highest state."}
+
+nres$state <- factor(nres$state, levels = c("Kentucky", "Illinois", "Michigan", "Tennessee",
+                                            "Ohio", "Other"))
+# background color 
+panel_c <- "#fdfdf2"
+# kentucky color
+ky_c <-  "#fc8d59"
+# ohio color
+oh_c <-  "#4575b4"
+# Tennessee color
+tn_c <-  "#91bfdb"
+
+s_cols <- c("Kentucky" = ky_c,
+            "Illinois" = "gray",
+            "Michigan" = "gray",
+            "Ohio"     = oh_c,
+            "Tennessee" = tn_c,
+            "Other"    = "gray")
+
+states <- states(cb=T)
+
+states <- states %>% filter(NAME == "Illinois" | NAME == "Michigan" | NAME == "Kentucky" |
+                              NAME == "Tennessee" | NAME == "Indiana" | NAME == "Ohio")
+
+# add colors to match bar chart #### 
+
+states$color[states$NAME == "Kentucky"] <- ky_c 
+states$color[states$NAME == "Ohio"] <- oh_c
+states$color[states$NAME == "Tennessee"] <- tn_c
+states$color[states$NAME == "Illinois" ] <- "gray"
+states$color[states$NAME == "Michigan"] <- "gray"
+
+# assign to variable for combo plot
+pt <- nres %>% group_by(state) %>% arrange(desc(abortions)) %>% ungroup() %>% 
+  # mutate(
+  #   year = as.factor(year),
+  #   state2 = tidytext::reorder_within(state, by = rev(abortions), within = year)) %>%
+  # added state2 as additional column to retain ability to scale_fill_manual via state column
+  ggplot(aes(year, abortions, fill = state))+
+  geom_col(show.legend = F)+
+  scale_fill_manual(values = s_cols)+
+  facet_grid(~state, scales="free_y", switch = "x")+
+  #coord_flip()+
+  #tidytext::scale_x_reordered()+
+  t_theme()+
+  theme(
+    panel.grid.major.y = element_blank(),
+    strip.background = element_blank(),
+    strip.text = element_text(hjust = 0),
+    
+    plot.subtitle = element_textbox_simple(size = rel(1.1), color = "gray40", hjust = 0,
+                                           lineheight = 1,margin = margin(.25, 0, .4, 0, unit = "cm"),),
+  )
+
+
+# inset map ####
+
+# assign to variable for combo chart
+p1 <- ggplot()+
+  geom_sf(data = states,
+          fill = states$color)+
+  t_theme()+
+  theme(
+    axis.text = element_blank(),
+  )
+
+# inset text 
+
+in_txt <- "<span style = 'color:#fc8d59;'> Kentucky</span> and
+      <span style = 'color:#82b6d6;'>Tennessee</span> enacted near-total abortion
+      bans after the Dobbs decision in 2022. Like Indiana, <span style = 'color:#376bae;'>Ohio's
+      </span>ban is currently blocked while litigation proceeds. Illinois and Michigan
+      retain abortion rights."
+
+# inset text object
+text1 <- ggplot(data = tibble(x = 0, y = 1, label = in_txt)) +
+  aes(x = x, y = y, label = label) +
+  geom_textbox(
+    box.color = NA,
+    color = "gray25",
+    fill = NA,
+    width = unit(10, "cm"),
+    hjust = 0,
+    vjust = 1 
+  ) +
+  scale_x_continuous(limits = c(0, 1))+
+  scale_y_continuous(limits = c(0, 1))+
+  theme_void() 
+
+# final combo plot ####
+
+pt + inset_element(p1, 
+                   left = 0.69, 
+                   bottom = 0.3, 
+                   right = .95, 
+                   top = 1,
+                   align_to = "plot")+
+  inset_element(text1, 
+                left = 0.295, 
+                bottom = 0.45, 
+                right = .73, 
+                top = .80,
+                align_to = "plot")+
+  
+  plot_annotation(
+    theme = t_theme(),
+    title =
+      "Indiana began reporting non-resident abortion totals for individual
+      states starting in 2019.<span style ='color:#fc8d59;'> Kentucky</span>
+      residents received the most overall. <span
+      style ='color:#82b6d6;'>Tennessee</span> had the second-highest total
+      in 2019 and the lowest in 2021.")
+
+```
+
+### Data
+
+```{r, non-resident abortion data table}
+nres <- read_csv("Exported_Data/nonresident_ab_19_21.csv")
+
+nres %>% 
+  datatable(
+          colnames = c("Year", "State", "Abortions"),
+          caption = htmltools::tags$caption(
+            style = 'caption-side: top; text-align: center;',
+    "Abortion totals for non-residents 2019 to 2021.", style = "color:black"),
+          rownames=FALSE, 
+          filter = "top", 
+          extensions = c('Buttons', 'FixedColumns'),
+          options = list(pageLength=10, 
+                         scrollX=T,
+                         dom = 'Bfrtip',
+                         scrollY = '250px',
+                         buttons = c('csv', 'excel')
+                         #columnDefs = list(list(className = 'dt-center', targets = 0:4))     
+                         )) 
+```
+
+## {-}
 
 ---
 
